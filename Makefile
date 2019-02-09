@@ -30,7 +30,7 @@ NAME = ft_nmap
 	
 CC = gcc
 
-CFLAGS = -Wall -Wextra -fsanitize=address
+CFLAGS = -Wall -Wextra -fsanitize=address -g
 
 OBJ_NAME = $(SRC_NAME:.c=.o)
 

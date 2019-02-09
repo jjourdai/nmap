@@ -73,6 +73,7 @@ enum	error {
 	UNKNOWN_TYPE,
 	REQUIRED_ARG,
 	INVALID_OPT,
+	UNDEFINED_PARAMETER,
 };
 
 struct nmap {
@@ -105,7 +106,7 @@ struct params_getter {
 struct nmap env;
 
 /* params.c */
-t_list	*get_params(char **argv, int argc, uint8_t *flag);
+t_list	*get_params(char **argv, int argc, uint32_t *flag);
 void	get_options(int argc, char **argv);
 
 /* init.c */

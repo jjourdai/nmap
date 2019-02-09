@@ -9,14 +9,15 @@ char	*error_str[] = {
 	[UNKNOWN_TYPE] = RED_TEXT("%s: '%s' is an unknown type\n"),
 	[REQUIRED_ARG] = RED_TEXT("%s: option requires an argument -- '%c'\n"),
 	[INVALID_OPT] = RED_TEXT("%s: invalid option -- '%c'\n"),
+	[UNDEFINED_PARAMETER] = RED_TEXT("%s: Undefined parameters -- '%s'\n"),
 };
 
-void	handle_error(uint32_t line, char *file, t_bool fatal, uint32_t error_code, ...)
+void	handle_error(uint32_t line, char *file, t_bool fatal, enum error code, ...)
 {
 	va_list ap;
 
-	va_start(ap, error_str[error_code]);
-	vfprintf(stderr, error_str[error_code], ap);
+	va_start(ap, error_str[code]);
+	vfprintf(stderr, error_str[code], ap);
 	va_end(ap);
 	if (DEBUG)
 		fprintf(stderr, RED_TEXT("Line : %u, File %s\n"), line, file);

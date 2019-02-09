@@ -13,13 +13,6 @@
 #include "nmap.h"
 #include "colors.h"
 
-void	longname_opt(char *str)
-{
-	(void)str;
-	fprintf(stderr, "traceroute: function not inplemented\n");
-	exit(EXIT_FAILURE);
-}
-
 /*
 static t_parameters *store_parameters(char *str, enum options flag)
 {
@@ -95,7 +88,7 @@ static void	get_scantype(char *str, void *ptr)
 			return ;
 		}
 	}
-	__FATAL(UNKNOWN_TYPE, str);
+	__FATAL(UNKNOWN_TYPE, BINARY_NAME, str);
 }
 
 static struct params_getter options[] = {
@@ -107,11 +100,52 @@ static struct params_getter options[] = {
 	{"file", 'f', F_FILE, get_string, &env.flag.file},
 };
 
-t_list		*get_params(char **argv, int argc, uint8_t *flag)
+void	longname_opt(char *str)
 {
-	int 	i, j, flag_has_found;
-	uint8_t	index;
+	(void)str;
+	fprintf(stderr, "traceroute: function not inplemented\n");
+	exit(EXIT_FAILURE);
+}
+
+void	shortname_opt(char **argv, uint32_t *flag, int *i)
+{
+	int		j, flag_has_found;
+	uint8_t index;
 	char	c;
+
+	j = 0;
+	while ((c = argv[*i][++j]))
+	{
+		index = -1;
+		flag_has_found = 0;
+		while (++index < COUNT_OF(options))
+		{
+			if (options[index].short_name == c) {
+			  flag_has_found = 1;
+			  if ((*flag & options[index].code) == options[index].code) {
+				fprintf(stderr, GREEN_TEXT("nmap: Warning --%s have been previously stored you could have an undefined behaviour\n"), options[index].long_name);
+			  }
+			  *flag |= options[index].code;
+			  if (options[index].f != NULL) {
+				if (argv[*i][j + 1] != '\0') {
+					return options[index].f(&argv[*i][++j], options[index].var);
+				} else if (argv[*i + 1] != NULL) {
+				 	return options[index].f(argv[++(*i)], options[index].var);
+				} else {
+				  __FATAL(REQUIRED_ARG, c);
+				}
+			  }
+			}
+		}
+		if (flag_has_found != 1) {
+		  __FATAL(INVALID_OPT, BINARY_NAME, c);
+		}
+	}
+}
+
+t_list		*get_params(char **argv, int argc, uint32_t *flag)
+{
+	int 	i;
 	t_list	*parameters;
 
 	i = 0;
@@ -119,39 +153,11 @@ t_list		*get_params(char **argv, int argc, uint8_t *flag)
 	while (++i < argc)
 	{
 		if (ft_strncmp(argv[i], "--", 2) == 0) {
-				longname_opt(argv[1]);
-		}
-		else if (argv[i][0] == '-') {
-			j = 0;
-			while ((c = argv[i][++j]))
-			{
-				index = -1;
-				flag_has_found = 0;
-				while (++index < COUNT_OF(options))
-				{
-					if (options[index].short_name == c) {
-						flag_has_found = 1;
-						if ((*flag & options[index].code) == options[index].code) {
-							fprintf(stderr, GREEN_TEXT("nmap: Warning --%s have been previously stored you could have an undefined  behaviour\n"), options[index].long_name);
-						}
-						*flag |= options[index].code;
-						if (options[index].f != NULL) {
-							if (argv[i][j + 1] != '\0') {
-									options[index].f(&argv[i][j + 1], options[index].var);
-							} else if (argv[i + 1] != NULL) {
-									options[index].f(argv[++i], options[index].var);
-							} else {
-								__FATAL(REQUIRED_ARG, c);
-							}
-						}
-						break ;
-					}
-				}
-				if (flag_has_found != 1) {
-					__FATAL(INVALID_OPT, c);
-				} else
-					break ;
-			}
+			longname_opt(argv[1]);
+		} else if (argv[i][0] == '-') {
+			shortname_opt(argv, flag, &i);	
+		} else {
+			__FATAL(UNDEFINED_PARAMETER, BINARY_NAME, argv[i]);
 		}
 //		else
 //				list_push_back(&parameters, store_parameters(argv[i], DOMAIN), sizeof(t_parameters));
@@ -164,22 +170,16 @@ void	get_options(int argc, char **argv)
 	t_list	*parameters;
 
 	ft_bzero(&env, sizeof(env));
-	parameters = get_params(argv, argc, &env.flag.value);
+	parameters = get_params(argv, argc, (uint32_t*)&env.flag.value);
+	printf(GREEN_TEXT("-----------------------------------\n"));
+	printf(GREEN_TEXT("Thread        | %10u\n"), env.flag.thread);
+	printf(GREEN_TEXT("Scantype      | %10s\n"), scantype[env.flag.scantype]);
+	printf(GREEN_TEXT("Targeted File | %10s\n"), env.flag.file);
+	printf(GREEN_TEXT("Targeted Ip   | %10s\n"), env.flag.ip);
+	printf(GREEN_TEXT("-----------------------------------\n"));
 	if (env.flag.value & F_HELP) {
 		fprintf(stderr, GREEN_TEXT(USAGE)); exit(EXIT_FAILURE);
 	}
 
-/* test print */
-	if (env.flag.value & F_PORT)
-		ft_putendl("F_PORT");
-	if (env.flag.value & F_SPEED)
-		ft_putendl("F_SPEED"); printf("%u\n", env.flag.thread);
-	if (env.flag.value & F_SCANTYPE)
-		ft_putendl("F_SCANTYPE"); ft_putendl(scantype[env.flag.scantype]);
-	if ((env.flag.value & F_FILE) == F_FILE)
-		ft_putendl("F_FILE"); ft_putendl(env.flag.file);
-	if ((env.flag.value & F_IP) == F_IP)
-		ft_putendl("F_IP"); ft_putendl(env.flag.ip);
-/* end test print */
-	list_remove(&parameters, remove_content);
+	//list_remove(&parameters, remove_content);
 }
