@@ -40,6 +40,7 @@
 # define BINARY_NAME "ft_nmap"
 # define DUP_ON 1
 # define DUP_OFF 0
+# define RANGE_MAX 1024
 
 # define DEBUG 1
 # define __FATAL(X, ...) handle_error(__LINE__, __FILE__, FATAL, X, __VA_ARGS__)
@@ -81,6 +82,7 @@ enum	error {
 	INVALID_SHORT_OPT,
 	UNDEFINED_PARAMETER,
 	NO_DEST_GIVEN,
+	RANGE_MAX_EXCEEDED,
 };
 
 struct nmap {

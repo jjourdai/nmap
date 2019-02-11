@@ -81,7 +81,7 @@ static void	get_port(char *str, void *ptr)
 
 	port = ptr;
 	min = ft_atoi_u(str);
-	if ((hyphen = ft_strchr(str, '-'))) {
+	if ((hyphen = ft_strchr_base(str, "-:"))) {
 		if (*(hyphen + 1)) {
 			max = ft_atoi_u(hyphen + 1);
 			port->min = min;
@@ -95,6 +95,9 @@ static void	get_port(char *str, void *ptr)
 		min = ft_atoi_u(str);
 		port->min = min;
 		port->max = min;
+	}
+	if (port->max - port->min > RANGE_MAX) {
+		__FATAL(RANGE_MAX_EXCEEDED, BINARY_NAME, port->max - port->min, RANGE_MAX);
 	}
 }
 
@@ -259,5 +262,5 @@ void	get_options(int argc, char **argv)
 //	printf(GREEN_TEXT("Targeted File | %10s\n"), env.flag.file);
 	printf(GREEN_TEXT("Targeted Ip   | %10s\n"), env.flag.ip);
 	printf(GREEN_TEXT("-----------------------------------\n"));
-	//list_remove(&parameters, remove_content);
+//	list_remove(&parameters, remove_content);
 }

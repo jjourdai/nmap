@@ -12,6 +12,7 @@ char	*error_str[] = {
 	[INVALID_SHORT_OPT] = RED_TEXT("%s: invalid option -- '%c'\n"),
 	[UNDEFINED_PARAMETER] = RED_TEXT("%s: Undefined parameters -- '%s'\n"),
 	[NO_DEST_GIVEN] = RED_TEXT("%s: at least one destination must be given see --help\n"),
+	[RANGE_MAX_EXCEEDED] = RED_TEXT("%s: '%d' Port range must be >= at '%d'\n"),
 };
 
 void	handle_error(uint32_t line, char *file, t_bool fatal, enum error code, ...)
