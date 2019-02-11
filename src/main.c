@@ -14,7 +14,9 @@ void	is_root(void)
 int main(int argc, char **argv)
 {
 	is_root();
+
 	get_options(argc, argv);
+
 /*/
 	init_env_socket(env.domain);
 	ft_bzero(&env.to_send, sizeof(env.to_send));

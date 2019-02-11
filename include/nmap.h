@@ -26,6 +26,7 @@
 # include <sys/time.h>
 # include <netdb.h>
 # include <stdarg.h>
+# include <fcntl.h>
 
 # define COUNT_OF(ptr) (sizeof(ptr) / sizeof((ptr)[0]))
 # define USAGE "ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --ip ADRESSE IP [--speedup [NOMBRE]] [--scan [TYPE]] \nft_nmap [--help] [--ports [NOMBRE/PLAGE]] --file FICHIER [--speedup [NOMBRE]] [--scan [TYPE]]\n"
@@ -37,9 +38,13 @@
 # define FILENAME_LEN 255
 # define DNS_LEN FILENAME_LEN
 # define BINARY_NAME "ft_nmap"
+# define DUP_ON 1
+# define DUP_OFF 0
 
 # define DEBUG 1
 # define __FATAL(X, ...) handle_error(__LINE__, __FILE__, FATAL, X, __VA_ARGS__)
+# define __ASSERTI(ERR_VALUE, RETURN_VALUE, STRING) x_int(ERR_VALUE, RETURN_VALUE, STRING, __FILE__, __LINE__)
+# define __ASSERT(ERR_VALUE, RETURN_VALUE, STRING) x_void(ERR_VALUE, RETURN_VALUE, STRING, __FILE__, __LINE__)
 
 enum	options {
 	F_HELP = (1 << 0),
@@ -56,13 +61,13 @@ enum	thread {
 };
 
 enum	scantype {
-	_ALL = 0,
-	_SYN, 
-	_NULL,
-	_ACK, 
-	_FIN,
-	_XMAS, 
-	_UDP,
+	_SYN = (1 << 0), 
+	_NULL = (1 << 1),
+	_ACK = (1 << 2), 
+	_FIN = (1 << 3),
+	_XMAS = (1 << 4), 
+	_UDP = (1 << 5),
+	_ALL = 0x3f, //value of all other flag 00111111
 };
 
 enum	error {
@@ -73,7 +78,9 @@ enum	error {
 	UNKNOWN_TYPE,
 	REQUIRED_ARG,
 	INVALID_OPT,
+	INVALID_SHORT_OPT,
 	UNDEFINED_PARAMETER,
+	NO_DEST_GIVEN,
 };
 
 struct nmap {
@@ -82,7 +89,7 @@ struct nmap {
 		uint8_t		thread;
 		uint8_t		scantype;
 		char		*ip;
-		char		*file;
+		char		**file;
 		struct port_range {
 			uint16_t	min;
 			uint16_t	max;
@@ -101,6 +108,7 @@ struct params_getter {
 	enum options	code;
 	void	(*f)(char *, void *ptr);	
 	void			*var;
+	uint8_t			dup;
 };
 
 struct nmap env;
@@ -118,5 +126,7 @@ void		init_receive_buffer(void);
 
 /* error.c */
 void	handle_error(uint32_t line, char *file, t_bool fatal, uint32_t error_code,  ...);
+int		x_int(int err, int res, char *str, char *file, int line);
+void	*x_roid(void *err, void *res, char *str, char *file, int line);
 
 #endif
