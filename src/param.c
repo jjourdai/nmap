@@ -229,10 +229,13 @@ t_list		*get_params(char **argv, int argc, uint32_t *flag)
 void	get_options(int argc, char **argv)
 {
 	t_list	*parameters;
-
+		/* default parameters */
 	ft_bzero(&env, sizeof(env));
 	env.flag.scantype = _ALL;
 	env.flag.thread = 1;
+	env.flag.port_range.min = 1;	
+	env.flag.port_range.max = 1024;	
+		/**********************/
 	parameters = get_params(argv, argc, (uint32_t*)&env.flag.value);
 	if (env.flag.value & F_HELP) {
 		fprintf(stderr, GREEN_TEXT(USAGE)); exit(EXIT_FAILURE);
