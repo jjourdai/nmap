@@ -21,12 +21,15 @@
 # include <sys/types.h>
 # include <netinet/in.h>
 # include <netinet/ip_icmp.h>
+# include <netinet/tcp.h>
+# include <netinet/udp.h>
 # include <arpa/inet.h>
 # include <sys/select.h>
 # include <sys/time.h>
 # include <netdb.h>
 # include <stdarg.h>
 # include <fcntl.h>
+# include <pcap.h>
 
 # define COUNT_OF(ptr) (sizeof(ptr) / sizeof((ptr)[0]))
 # define USAGE "ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --ip ADRESSE IP [--speedup [NOMBRE]] [--scan [TYPE]] \n"\
@@ -74,8 +77,8 @@ enum	scantype {
 	_NULL = (1 << 1),
 	_ACK = (1 << 2), 
 	_FIN = (1 << 3),
-	_XMAS = (1 << 4), 
-	_UDP = (1 << 5),
+	_XMAS = (1 << 4), //TCP REQ with FIN, PSH et URG
+	_UDP = (1 << 5), //UDP REQ without data
 	_ALL = 0x3f, //value of all other flag 00111111
 };
 
@@ -93,6 +96,41 @@ enum	error {
 	RANGE_MAX_EXCEEDED,
 	IP_AND_FILE_GIVEN,
 };
+
+//struct pcap_pkthdr {
+//		struct timeval ts; /* time stamp */
+//		bpf_u_int32 caplen; /* length of portion present */
+//		bpf_u_int32 len; /* length this packet (off wire) */	
+//};
+
+/*
+
+
+enum	port_status {
+	OPENED,
+	CLOSED,
+	FILTERED,
+	UNFILTERED,
+};
+
+*/
+
+#define ETHER_ADDR_LEN	6
+struct sniff_ethernet {
+		u_char ether_dhost[ETHER_ADDR_LEN]; /* Destination host address */
+		u_char ether_shost[ETHER_ADDR_LEN]; /* Source host address */
+		u_short ether_type; /* IP? ARP? RARP? etc */
+};
+
+struct packets {
+	struct sniff_ethernet	eth;
+	struct iphdr 			ip;
+	union {
+		struct tcphdr		tcp;
+		struct udphdr		udp;
+	} un;
+};
+
 
 struct nmap {
 	struct {
