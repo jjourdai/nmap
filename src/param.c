@@ -201,7 +201,6 @@ void	shortname_opt(char **argv, uint32_t *flag, int *i)
 		  __FATAL(INVALID_SHORT_OPT, BINARY_NAME, c);
 		}
 	}
-	__FATAL(INVALID_SHORT_OPT, BINARY_NAME, c);
 }
 
 t_list		*get_params(char **argv, int argc, uint32_t *flag)
@@ -226,6 +225,39 @@ t_list		*get_params(char **argv, int argc, uint32_t *flag)
 	return (parameters);
 }
 
+void	print_scan_configuration(void)
+{
+	uint32_t	i;
+
+	printf(BLUE_TEXT("Scan Configurations:\n"));
+	if (env.flag.file != NULL) {
+		printf(BLUE_TEXT("File Input detected:\n"));
+		for (i = 0; env.flag.file[i]; i++) {
+			printf(BLUE_TEXT("Target IP address: %s\n"), env.flag.file[i]);
+		}
+	} else {
+		printf(BLUE_TEXT("Target IP address: %s\n"), env.flag.ip);
+	}
+	if (env.flag.port_range.min != env.flag.port_range.max)
+		printf(BLUE_TEXT("Port range: %u-%u\n"), env.flag.port_range.min, env.flag.port_range.max);
+	else
+		printf(BLUE_TEXT("Port to scan: %u\n"), env.flag.port_range.min);
+	if (env.flag.scantype == _ALL) {
+			printf(BLUE_TEXT("Scans to be performed:  %10s\n"), "ALL");
+	} else {
+		uint8_t i;
+		printf(BLUE_TEXT("Scans to be performed: "));
+		for (i = 0; i < COUNT_OF(type); i++)
+		{
+			if (env.flag.scantype & type[i].flag) {
+				printf(BLUE_TEXT("    %s,"), type[i].str);
+			}
+		}
+		printf("\n");
+	}
+	printf(BLUE_TEXT("Thread Number: %u\n"), env.flag.thread);
+}
+
 void	get_options(int argc, char **argv)
 {
 	t_list	*parameters;
@@ -238,32 +270,15 @@ void	get_options(int argc, char **argv)
 		/**********************/
 	parameters = get_params(argv, argc, (uint32_t*)&env.flag.value);
 	if (env.flag.value & F_HELP) {
-		fprintf(stderr, GREEN_TEXT(USAGE)); exit(EXIT_FAILURE);
+		fprintf(stderr, GREEN_TEXT(USAGE) GREEN_TEXT(HELPER)); exit(EXIT_FAILURE);
 	}
 	if (env.flag.ip == NULL && env.flag.file == NULL) {
 		__FATAL(NO_DEST_GIVEN, BINARY_NAME);
+	} else if (env.flag.ip != NULL && env.flag.file != NULL) {
+		__FATAL(IP_AND_FILE_GIVEN, BINARY_NAME);
 	}
-
-	printf(GREEN_TEXT("-----------------------------------\n"));
-	printf(GREEN_TEXT("Thread        | %10u\n"), env.flag.thread);
 	if (env.flag.scantype != _ALL)
 		env.flag.scantype = ~(env.flag.scantype & _ALL);
-
-	if (env.flag.scantype == _ALL) {
-			printf(GREEN_TEXT("Scantype      | %10s\n"), "ALL");
-	} else {
-		uint8_t i;
-		printf(GREEN_TEXT("Scantype      |"));
-		for (i = 0; i < COUNT_OF(type); i++)
-		{
-			if (env.flag.scantype & type[i].flag) {
-				printf(GREEN_TEXT("    %s,"), type[i].str);
-			}
-		}
-		printf("\n");
-	}
-//	printf(GREEN_TEXT("Targeted File | %10s\n"), env.flag.file);
-	printf(GREEN_TEXT("Targeted Ip   | %10s\n"), env.flag.ip);
-	printf(GREEN_TEXT("-----------------------------------\n"));
+	print_scan_configuration();
 //	list_remove(&parameters, remove_content);
 }

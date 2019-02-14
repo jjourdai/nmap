@@ -29,7 +29,15 @@
 # include <fcntl.h>
 
 # define COUNT_OF(ptr) (sizeof(ptr) / sizeof((ptr)[0]))
-# define USAGE "ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --ip ADRESSE IP [--speedup [NOMBRE]] [--scan [TYPE]] \nft_nmap [--help] [--ports [NOMBRE/PLAGE]] --file FICHIER [--speedup [NOMBRE]] [--scan [TYPE]]\n"
+# define USAGE "ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --ip ADRESSE IP [--speedup [NOMBRE]] [--scan [TYPE]] \n"\
+				"ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --file FICHIER [--speedup [NOMBRE]] [--scan [TYPE]]\n"
+
+# define HELPER "--help, -h Print this help screen\n"\
+				"--ports, -p ports to scan (eg: 1-10 or 1,2,3 or 1,5-15)\n"\
+				"--ip, -i ip addresses to scan in dot format\n"\
+				"--file, -f File name containing IP addresses to scan,\n"\
+				"--speedup, -t [250 max] number of parallel threads to use\n"\
+				"--scan, -s  SYN/NULL/FIN/XMAS/ACK/UDP\n"\
 
 # define TRUE 1
 # define FALSE 0
@@ -83,6 +91,7 @@ enum	error {
 	UNDEFINED_PARAMETER,
 	NO_DEST_GIVEN,
 	RANGE_MAX_EXCEEDED,
+	IP_AND_FILE_GIVEN,
 };
 
 struct nmap {
