@@ -41,7 +41,7 @@ int	main(int argc, char **argv)
 		pcap_dispatch
 */
 
-	//get_options(argc, argv);
+	get_options(argc, argv);
 
 /*/
 	init_env_socket(env.domain);
