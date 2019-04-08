@@ -122,13 +122,18 @@ struct sniff_ethernet {
 		u_short ether_type; /* IP? ARP? RARP? etc */
 };
 
-struct packets {
-	struct sniff_ethernet	eth;
+struct buffer {
 	struct iphdr 			ip;
 	union {
 		struct tcphdr		tcp;
 		struct udphdr		udp;
 	} un;
+	uint8_t	data[128];
+}__attribute__((packed)); 
+
+struct packets {
+	struct sniff_ethernet	eth;
+	struct buffer		buf;
 };
 
 
@@ -144,6 +149,9 @@ struct nmap {
 			uint16_t	max;
 		} port_range;
 	} flag;
+	uint32_t	my_ip;
+	uint32_t	socket;
+	struct addrinfo	*addr;
 };
 
 typedef struct parameters {
@@ -160,6 +168,10 @@ struct params_getter {
 	uint8_t			dup;
 };
 
+struct thread_job { //data struct to send at pthread_create
+
+};
+
 struct nmap env;
 
 /* params.c */
@@ -168,8 +180,10 @@ void	get_options(int argc, char **argv);
 
 /* init.c */
 
-void		init_iphdr(struct ip *ip, struct in_addr *dest);
-void		init_icmphdr(struct icmphdr *icmp);
+void		init_iphdr(struct iphdr *ip, uint32_t dest);
+void		init_icmphdr(struct icmphdr *hdr);
+void		init_tcphdr(struct tcphdr *hdr);
+void		init_udp(struct udphdr *hdr);
 void		init_env_socket(char *domain);
 void		init_receive_buffer(void);
 
