@@ -14,15 +14,15 @@
 #include "colors.h"
 
 /*
-static t_parameters *store_parameters(char *str, enum options flag)
-{
-	static t_parameters new_param;
+   static t_parameters *store_parameters(char *str, enum options flag)
+   {
+   static t_parameters new_param;
 
-	new_param.str = str;
-	new_param.code = flag;
-	return (&new_param);
-}
-*/
+   new_param.str = str;
+   new_param.code = flag;
+   return (&new_param);
+   }
+ */
 
 static void	get_ip_in_file(char *str, void *ptr)
 {
@@ -89,7 +89,7 @@ static void	get_port(char *str, void *ptr)
 			if (min > max)
 				__FATAL(THREAD_MIN_NOT_GREATER, BINARY_NAME);
 		} else {
-				__FATAL(INVALID_PORT_SYNTAX, BINARY_NAME);
+			__FATAL(INVALID_PORT_SYNTAX, BINARY_NAME);
 		}
 	} else {
 		min = ft_atoi_u(str);
@@ -113,7 +113,7 @@ static struct scan_type type[] = {
 	{_FIN, "FIN"},
 	{_XMAS, "XMAS"},
 	{_UDP, "UDP"},
-//	{_ALL, "ALL"},
+	//	{_ALL, "ALL"},
 };
 
 static void	get_scantype(char *str, void *ptr)
@@ -123,9 +123,9 @@ static void	get_scantype(char *str, void *ptr)
 	while (++i < COUNT_OF(type))
 	{
 		if (ft_strcmp(str, type[i].str) == 0) {
-	//		printf("%llx\n", *((uint8_t*)ptr));
+			//		printf("%llx\n", *((uint8_t*)ptr));
 			*((uint8_t*)ptr) ^= type[i].flag;
-	//		printf("%llx\n", *((uint8_t*)ptr));
+			//		printf("%llx\n", *((uint8_t*)ptr));
 			return ;
 		}
 	}
@@ -151,20 +151,22 @@ void	longname_opt(char **argv, uint32_t *flag, int *i)
 	while (++index < COUNT_OF(options))
 	{
 		if (ft_strcmp(options[index].long_name, string) == 0) {
-		  if ((*flag & options[index].code) == options[index].code && options[index].dup == DUP_OFF) {
-			fprintf(stderr, GREEN_TEXT("nmap: Warning --%s have been previously stored you could have an undefined behaviour\n"), options[index].long_name);
-		  }
-		  *flag |= options[index].code;
-		  if (options[index].f != NULL) {
-			if (argv[*i + 1] != NULL) {
-			 	return options[index].f(argv[++(*i)], options[index].var);
-			} else {
-				  __FATAL(REQUIRED_ARG, BINARY_NAME, options[index].long_name);
+			if ((*flag & options[index].code) == options[index].code && options[index].dup == DUP_OFF) {
+				fprintf(stderr, GREEN_TEXT("nmap: Warning --%s have been previously stored you could have an undefined behaviour\n"), options[index].long_name);
 			}
-		  }
+			*flag |= options[index].code;
+			if (options[index].f != NULL) {
+				if (argv[*i + 1] != NULL) {
+					return options[index].f(argv[++(*i)], options[index].var);
+				} else {
+					__FATAL(REQUIRED_ARG, BINARY_NAME, options[index].long_name);
+				}
+			} else {
+				return ;
+			}
 		}
 	}
-  __FATAL(INVALID_OPT, BINARY_NAME, string);
+	__FATAL(INVALID_OPT, BINARY_NAME, string);
 }
 
 void	shortname_opt(char **argv, uint32_t *flag, int *i)
@@ -181,24 +183,24 @@ void	shortname_opt(char **argv, uint32_t *flag, int *i)
 		while (++index < COUNT_OF(options))
 		{
 			if (options[index].short_name == c) {
-			  flag_has_found = 1;
-			  if ((*flag & options[index].code) == options[index].code && options[index].dup == DUP_OFF) {
-				fprintf(stderr, GREEN_TEXT("nmap: Warning --%s have been previously stored you could have an undefined behaviour\n"), options[index].long_name);
-			  }
-			  *flag |= options[index].code;
-			  if (options[index].f != NULL) {
-				if (argv[*i][j + 1] != '\0') {
-					return options[index].f(&argv[*i][++j], options[index].var);
-				} else if (argv[*i + 1] != NULL) {
-				 	return options[index].f(argv[++(*i)], options[index].var);
-				} else {
-				  __FATAL(REQUIRED_ARG, BINARY_NAME, options[index].long_name);
+				flag_has_found = 1;
+				if ((*flag & options[index].code) == options[index].code && options[index].dup == DUP_OFF) {
+					fprintf(stderr, GREEN_TEXT("nmap: Warning --%s have been previously stored you could have an undefined behaviour\n"), options[index].long_name);
 				}
-			  }
+				*flag |= options[index].code;
+				if (options[index].f != NULL) {
+					if (argv[*i][j + 1] != '\0') {
+						return options[index].f(&argv[*i][++j], options[index].var);
+					} else if (argv[*i + 1] != NULL) {
+						return options[index].f(argv[++(*i)], options[index].var);
+					} else {
+						__FATAL(REQUIRED_ARG, BINARY_NAME, options[index].long_name);
+					}
+				}
 			}
 		}
 		if (flag_has_found != 1) {
-		  __FATAL(INVALID_SHORT_OPT, BINARY_NAME, c);
+			__FATAL(INVALID_SHORT_OPT, BINARY_NAME, c);
 		}
 	}
 }
@@ -219,8 +221,8 @@ t_list		*get_params(char **argv, int argc, uint32_t *flag)
 		} else {
 			__FATAL(UNDEFINED_PARAMETER, BINARY_NAME, argv[i]);
 		}
-//		else
-//				list_push_back(&parameters, store_parameters(argv[i], DOMAIN), sizeof(t_parameters));
+		//		else
+		//				list_push_back(&parameters, store_parameters(argv[i], DOMAIN), sizeof(t_parameters));
 	}
 	return (parameters);
 }
@@ -243,7 +245,7 @@ void	print_scan_configuration(void)
 	else
 		printf(BLUE_TEXT("Port to scan: %u\n"), env.flag.port_range.min);
 	if (env.flag.scantype == _ALL) {
-			printf(BLUE_TEXT("Scans to be performed:  %10s\n"), "ALL");
+		printf(BLUE_TEXT("Scans to be performed:  %10s\n"), "ALL");
 	} else {
 		uint8_t i;
 		printf(BLUE_TEXT("Scans to be performed: "));
@@ -261,13 +263,13 @@ void	print_scan_configuration(void)
 void	get_options(int argc, char **argv)
 {
 	t_list	*parameters;
-		/* default parameters */
+	/* default parameters */
 	ft_bzero(&env, sizeof(env));
 	env.flag.scantype = _ALL;
 	env.flag.thread = 1;
 	env.flag.port_range.min = 1;	
 	env.flag.port_range.max = 1024;	
-		/**********************/
+	/**********************/
 	parameters = get_params(argv, argc, (uint32_t*)&env.flag.value);
 	if (env.flag.value & F_HELP) {
 		fprintf(stderr, GREEN_TEXT(USAGE) GREEN_TEXT(HELPER)); exit(EXIT_FAILURE);
@@ -280,5 +282,5 @@ void	get_options(int argc, char **argv)
 	if (env.flag.scantype != _ALL)
 		env.flag.scantype = ~(env.flag.scantype & _ALL);
 	print_scan_configuration();
-//	list_remove(&parameters, remove_content);
+	//	list_remove(&parameters, remove_content);
 }

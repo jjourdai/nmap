@@ -1,48 +1,48 @@
 
 #include "nmap.h"
 
-/*
-struct addrinfo *result_dns(char *domain)
-{
-	struct addrinfo hints;
-	struct addrinfo *result = NULL;
-
-	ft_bzero(&hints, sizeof(hints));
-	hints.ai_family = AF_INET;
-	hints.ai_flags = AI_CANONNAME;
-	if (getaddrinfo(domain, NULL, &hints, &result) != 0) {
-		fprintf(stderr, "ping: unknown host %s\n", domain); exit(EXIT_FAILURE);
-	} else {
-		return (result);
-	}
-}
-
-void 	init_iphdr(struct ip *ip, struct in_addr *dest)
+void 	init_iphdr(struct iphdr *ip, uint32_t dest, uint32_t protocol)
 {
 	ft_bzero(ip, sizeof(*ip));
-	ip->ip_v = 4;
-	ip->ip_hl = sizeof(struct ip) >> 2;
-	ip->ip_tos = 0;
-	ip->ip_len = htons(sizeof(struct buffer));
-	ip->ip_id = 0;
-	ip->ip_off = htons(IP_DF);
-	ip->ip_ttl = 0;
-	ip->ip_p = IPPROTO_ICMP;
-	ip->ip_sum = 0;
-	inet_pton(AF_INET, "0.0.0.0", &ip->ip_src);
-	ip->ip_dst = *dest;
+	ip->version = 4;
+	ip->ihl = sizeof(struct ip) >> 2;
+	ip->tos = 0;
+	ip->tot_len = htons(sizeof(struct buffer));
+	ip->id = env.pid;
+	ip->frag_off = 0;
+	ip->ttl = 0;
+	ip->protocol = protocol;
+	ip->check = 0;
+	ip->daddr = dest;
+	ip->saddr = 0;
 }
 
-void	init_icmphdr(struct icmphdr *icmp)
+void	init_udphdr(struct udphdr *udp)
 {
-	ft_bzero(icmp, sizeof(*icmp));
-	icmp->type = ICMP_ECHO;
-	icmp->code = 0;
-	icmp->un.echo.id = env.pid;
-	icmp->un.echo.sequence = 1;
-	icmp->checksum = 0;
+	ft_bzero(udp, sizeof(*udp));
+	
+	udp->source = 0;
+	udp->dest = 0;
+	udp->len = htons(sizeof(struct buffer) - sizeof(struct iphdr));
+	udp->check = 0;
 }
 
+void	init_tcphdr(struct tcphdr *tcp, uint32_t port, uint32_t flag_type)
+{
+	ft_bzero(tcp, sizeof(*tcp));
+	
+	tcp->th_sport = htons(port);
+	tcp->th_dport = htons(port);
+	tcp->th_seq = 0;
+	tcp->th_ack = 0;
+	tcp->th_off = sizeof(struct tcphdr) >> 2;
+	tcp->th_flags = flag_type;
+	tcp->th_win = 0;
+	tcp->th_sum = 0;
+	tcp->th_urp = 0;
+}
+
+/*
 void	init_env_socket(char *domain)
 {
 	ft_memcpy(&env.addrinfo, result_dns(domain), sizeof(struct addrinfo));
@@ -58,6 +58,7 @@ void	init_env_socket(char *domain)
 		}
 	}
 }
+
 
 void	init_receive_buffer(void)
 {

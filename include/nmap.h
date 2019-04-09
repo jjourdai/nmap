@@ -21,6 +21,8 @@
 # include <sys/types.h>
 # include <netinet/in.h>
 # include <netinet/ip_icmp.h>
+# include <netinet/tcp.h>
+# include <netinet/udp.h>
 # include <arpa/inet.h>
 # include <sys/select.h>
 # include <sys/time.h>
@@ -28,6 +30,7 @@
 # include <stdarg.h>
 # include <fcntl.h>
 # include <pthread.h>
+# include <pcap.h>
 
 # define COUNT_OF(ptr) (sizeof(ptr) / sizeof((ptr)[0]))
 # define USAGE "ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --ip ADRESSE IP [--speedup [NOMBRE]] [--scan [TYPE]] \n"\
@@ -124,10 +127,36 @@ typedef struct	s_thread_task
 {
 	pthread_t		id;
 	uint8_t			scan_type;
-	t_port_range	port_range;
+	t_port_range		port_range;
 	t_port			*ports;
 	void			(*function)(struct s_thread_task *, t_port *);
 }					t_thread_task;
+//struct pcap_pkthdr {
+//		struct timeval ts; /* time stamp */
+//		bpf_u_int32 caplen; /* length of portion present */
+//		bpf_u_int32 len; /* length this packet (off wire) */	
+//};
+
+#define ETHER_ADDR_LEN	6
+struct sniff_ethernet {
+		u_char ether_dhost[ETHER_ADDR_LEN]; /* Destination host address */
+		u_char ether_shost[ETHER_ADDR_LEN]; /* Source host address */
+		u_short ether_type; /* IP? ARP? RARP? etc */
+};
+
+struct buffer {
+	struct iphdr 			ip;
+	union {
+		struct tcphdr		tcp;
+		struct udphdr		udp;
+	} un;
+	uint8_t	data[128];
+}__attribute__((packed)); 
+
+struct packets {
+	struct sniff_ethernet	eth;
+	struct buffer		buf;
+};
 
 struct nmap {
 	struct {
@@ -140,6 +169,10 @@ struct nmap {
 	} flag;
 	t_thread_task	threads[THREAD_MAX];
 	t_port			ports[RANGE_MAX];
+	uint32_t	my_ip;
+	uint32_t	pid;
+	uint32_t	socket;
+	struct addrinfo	*addr;
 };
 
 typedef struct parameters {
@@ -164,8 +197,10 @@ void	get_options(int argc, char **argv);
 
 /* init.c */
 
-void		init_iphdr(struct ip *ip, struct in_addr *dest);
-void		init_icmphdr(struct icmphdr *icmp);
+void		init_iphdr(struct iphdr *ip, uint32_t dest, uint32_t protocol);
+void		init_icmphdr(struct icmphdr *hdr);
+void		init_tcphdr(struct tcphdr *hdr, uint32_t port, uint32_t flag_type);
+void		init_udp(struct udphdr *hdr);
 void		init_env_socket(char *domain);
 void		init_receive_buffer(void);
 
