@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   param.c                                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: jjourdai <marvin@42.fr>                    +#+  +:+       +#+        */
+/*   By: polooo <polooo@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/09/12 12:28:59 by jjourdai          #+#    #+#             */
-/*   Updated: 2018/09/19 14:01:29 by jjourdai         ###   ########.fr       */
+/*   Updated: 2019/04/09 14:42:40 by polooo           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -74,7 +74,7 @@ static void	get_thread(char *str, void *ptr)
 
 static void	get_port(char *str, void *ptr)
 {
-	struct port_range *port;
+	t_port_range *port;
 	char		*hyphen;
 	uint32_t	min;
 	uint32_t	max;

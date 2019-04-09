@@ -3,20 +3,25 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: jjourdai <marvin@42.fr>                    +#+  +:+       +#+         #
+#    By: polooo <polooo@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2017/01/17 13:28:01 by jjourdai          #+#    #+#              #
-#*   Updated: 2017/03/06 14:29:20 by jjourdai         ###   ########.fr       *#
+#    Updated: 2019/04/09 14:42:34 by polooo           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 SRC_PATH = ./src/
+
+INC_PATH =	./include/
 
 SRC_NAME =	main.c \
 			param.c \
 			options.c \
 			init.c \
 			err.c \
+
+INC_NAME =	nmap.h \
+			colors.h
 
 OBJ_PATH = ./.obj/
 
@@ -39,16 +44,23 @@ SRC = $(addprefix $(SRC_PATH), $(SRC_NAME))
 
 OBJ = $(addprefix $(OBJ_PATH), $(OBJ_NAME))
 
+INC = $(addprefix $(INC_PATH), $(INC_NAME))
+
+JOBS =	4
+
 .PHONY: all, clean, fclean, re
 
-all: $(NAME)
+all:
+	make $(NAME) -j$(JOBS)
 
 $(NAME): $(OBJ)
-	make -C ./libft/
+	make -C ./libft/ -j$(JOBS)
 	$(CC) $^ -o $(NAME) $(CFLAGS) $(LDFLAGS) $(LDLIBS)
 
-$(OBJ_PATH)%.o: $(SRC_PATH)%.c ./include
-	@mkdir $(OBJ_PATH) 2> /dev/null || true
+$(OBJ_PATH):
+	mkdir -p $@
+
+$(OBJ_PATH)%.o: $(SRC_PATH)%.c $(INC) Makefile | $(OBJ_PATH)
 	$(CC) -o $@ $(CFLAGS) $(CPPFLAGS) -c $<
 
 clean:

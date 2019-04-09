@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   nmap.h                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: jjourdai <marvin@42.fr>                    +#+  +:+       +#+        */
+/*   By: polooo <polooo@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/12/17 18:12:39 by jjourdai          #+#    #+#             */
-/*   Updated: 2019/02/01 11:03:40 by jjourdai         ###   ########.fr       */
+/*   Updated: 2019/04/09 14:42:37 by polooo           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,7 @@
 # include <netdb.h>
 # include <stdarg.h>
 # include <fcntl.h>
+# include <pthread.h>
 
 # define COUNT_OF(ptr) (sizeof(ptr) / sizeof((ptr)[0]))
 # define USAGE "ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --ip ADRESSE IP [--speedup [NOMBRE]] [--scan [TYPE]] \n"\
@@ -55,6 +56,11 @@
 # define __ASSERTI(ERR_VALUE, RETURN_VALUE, STRING) x_int(ERR_VALUE, RETURN_VALUE, STRING, __FILE__, __LINE__)
 # define __ASSERT(ERR_VALUE, RETURN_VALUE, STRING) x_void(ERR_VALUE, RETURN_VALUE, STRING, __FILE__, __LINE__)
 
+# define BIT(n)			(1 << n)
+# define SET(x, n)		(x | n)
+# define UNSET(x, n)	(x & (~n))
+# define ISSET(x, n)	(x & n)
+
 enum	options {
 	F_HELP = (1 << 0),
 	F_PORT = (1 << 1),
@@ -70,12 +76,12 @@ enum	thread {
 };
 
 enum	scantype {
-	_SYN = (1 << 0), 
-	_NULL = (1 << 1),
-	_ACK = (1 << 2), 
-	_FIN = (1 << 3),
-	_XMAS = (1 << 4), 
-	_UDP = (1 << 5),
+	_SYN = BIT(0),
+	_NULL = BIT(1),
+	_ACK = BIT(2),
+	_FIN = BIT(3),
+	_XMAS = BIT(4),
+	_UDP = BIT(5),
 	_ALL = 0x3f, //value of all other flag 00111111
 };
 
@@ -94,18 +100,46 @@ enum	error {
 	IP_AND_FILE_GIVEN,
 };
 
+enum	e_port_state
+{
+	PORT_OPEN = BIT(0),
+	PORT_FILTERED = BIT(1),
+	PORT_CLOSED = BIT(2),
+	PORT_UNFILTERED = BIT(3)
+};
+
+typedef struct	s_port_range
+{
+	uint16_t	min;
+	uint16_t	max;
+}				t_port_range;
+
+typedef struct	s_port
+{
+	uint16_t	number;
+	uint16_t	state;
+}				t_port;
+
+typedef struct	s_thread_task
+{
+	pthread_t		id;
+	uint8_t			scan_type;
+	t_port_range	port_range;
+	t_port			*ports;
+	void			(*function)(struct s_thread_task *, t_port *);
+}					t_thread_task;
+
 struct nmap {
 	struct {
-		uint8_t		value;
-		uint8_t		thread;
-		uint8_t		scantype;
-		char		*ip;
-		char		**file;
-		struct port_range {
-			uint16_t	min;
-			uint16_t	max;
-		} port_range;
+		uint8_t			value;
+		uint8_t			thread;
+		uint8_t			scantype;
+		char			*ip;
+		char			**file;
+		t_port_range	port_range;
 	} flag;
+	t_thread_task	threads[THREAD_MAX];
+	t_port			ports[RANGE_MAX];
 };
 
 typedef struct parameters {
