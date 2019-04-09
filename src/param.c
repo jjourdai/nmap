@@ -279,8 +279,10 @@ void	get_options(int argc, char **argv)
 	} else if (env.flag.ip != NULL && env.flag.file != NULL) {
 		__FATAL(IP_AND_FILE_GIVEN, BINARY_NAME);
 	}
-	if (env.flag.scantype != _ALL)
+	if (env.flag.scantype != _ALL) {
 		env.flag.scantype = ~(env.flag.scantype & _ALL);
+	}
 	print_scan_configuration();
+	env.flag.scantype = (env.flag.scantype & _ALL);
 	//	list_remove(&parameters, remove_content);
 }

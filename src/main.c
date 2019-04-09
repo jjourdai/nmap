@@ -12,9 +12,15 @@ void	is_root(void)
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
 	struct packets *sniff;
-
+	struct in_addr src;
+	struct in_addr dst;
+	
 	sniff = (struct packets*)packet;
-	printf("SRC %s DEST %s SRC_PORT %u DST_PORT %u\n", inet_ntoa(*((struct in_addr*)&sniff->buf.ip.saddr)), inet_ntoa(*((struct in_addr*)&sniff->buf.ip.daddr)), ntohs(sniff->buf.un.tcp.th_sport), ntohs(sniff->buf.un.tcp.th_dport));
+	dst.s_addr = sniff->buf.ip.daddr;
+	src.s_addr = sniff->buf.ip.saddr;
+	printf("SRC %s ", inet_ntoa(src));
+	printf("DST %s ", inet_ntoa(dst));
+	printf("SRC_PORT %u DST_PORT %u\n", ntohs(sniff->buf.un.tcp.th_sport), ntohs(sniff->buf.un.tcp.th_dport));
 	//printf("Sniffed packet_len [%u]\n", header->len);
 }
 
@@ -113,11 +119,12 @@ void	run_thread(t_thread_task *task)
 	uint16_t	port;
 	uint32_t	scantype = scantype_value[task->scan_type];
 
+	printf("%u %u\n", env.flag.scantype, _SYN);
 	printf("hello, I'm a thread running on [%hu-%hu] :D\n", task->port_range.min, task->port_range.max);
 	port = task->port_range.min - 1;
-	while (++port < task->port_range.max)
+	while (port < task->port_range.max)
 	{
-		send_packet(scantype, port);
+		send_packet(scantype, ++port);
 	}
 }
 
@@ -153,6 +160,7 @@ int		main(int argc, char **argv)
 	i = (size_t)-1;
 	while (++i < env.flag.thread)
 	{
+		env.threads[i].scan_type = env.flag.scantype;
 		env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
 		env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
 		env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
