@@ -9,13 +9,30 @@ void	is_root(void)
 	exit(EXIT_FAILURE);
 }
 
-static char *flag_string[] = {
+static char *tcp_flag_string[] = {
 	[TH_FIN] = "FIN",
 	[TH_SYN] = "SYN",
 	[TH_RST] = "RST",
 	[TH_PUSH] = "PUSH",
 	[TH_ACK] = "ACK",
 	[TH_URG] = "URG",
+};
+
+static char *icmp_code_string[] = {
+	[ICMP_ECHOREPLY] = "ICMP_ECHOREPLY",	     /* Echo Reply			*/
+	[ICMP_DEST_UNREACH] = "ICMP_DEST_UNREACH",     /* Destination Unreachable	*/
+	[ICMP_SOURCE_QUENCH] = "ICMP_SOURCE_QUENCH",	     /* Source Quench		*/
+	[ICMP_REDIRECT]	= "ICMP_REDIRECT",	     /* Redirect (change route)	*/
+	[ICMP_ECHO] = "ICMP_ECHO",   /* Echo Request			*/
+	[ICMP_TIME_EXCEEDED] = "ICMP_TIME_EXCEEDED",   /* Time Exceeded		*/
+	[ICMP_PARAMETERPROB] = "ICMP_PARAMETERPROB",	     /* Parameter Problem		*/
+	[ICMP_TIMESTAMP] = "ICMP_TIMESTAMP",	     /* Timestamp Request		*/
+	[ICMP_TIMESTAMPREPLY] = "ICMP_TIMESTAMPREPLY",   /* Timestamp Reply		*/
+	[ICMP_INFO_REQUEST] = "ICMP_INFO_REQUEST",   /* Information Request		*/
+	[ICMP_INFO_REPLY] = "ICMP_INFO_REPLY",    /* Information Reply		*/
+	[ICMP_ADDRESS] = "ICMP_ADDRESS",	     /* Address Mask Request		*/
+	[ICMP_ADDRESSREPLY] = "ICMP_ADDRESSREPLY",	     /* Address Mask Reply		*/
+	[NR_ICMP_TYPES] = "NR_ICMP_TYPES",		
 };
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
@@ -44,16 +61,16 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	}
 	uint16_t protocol = sniff->buf.ip.protocol;
 	if (protocol == IPPROTO_TCP) {
+		printf("tcp/ ");
 		uint8_t flag = sniff->buf.un.tcp.th_flags;
 		uint8_t bit = 1;
 		uint8_t flag_test;
 		while (bit <= 32) {
 			flag_test = flag & bit;
 			if (flag_test != 0)
-				printf(RED_TEXT("flag rcv %s\n"), flag_string[flag_test]);
+				printf(RED_TEXT("flag rcv %s\n"), tcp_flag_string[flag_test]);
 			bit = bit << 1;
 		}
-		printf("tcp/ ");
 		struct  servent *service;
 		if (service = getservbyport(sniff->buf.un.tcp.th_sport, NULL)) {
 			printf(YELLOW_TEXT("service %s "), service->s_name);
@@ -62,9 +79,13 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		}
 		printf(MAGENTA_TEXT("SRC_PORT %u DST_PORT %u\n"), ntohs(sniff->buf.un.tcp.th_sport), ntohs(sniff->buf.un.tcp.th_dport));
 	} else {
-		if (protocol == IPPROTO_ICMP) 
+		if (protocol == IPPROTO_ICMP) {
 			printf("icmp/ \n");
-
+			printf("code = %s\n", icmp_code_string[sniff->buf.un.icmp.code]);
+			struct buffer *ptr;
+			ptr = sniff->buf.data;
+			printf("%u\n", ptr->ip.protocol);
+		}
 		else if (protocol == IPPROTO_UDP)
 			printf("udp/ \n");
 		else
@@ -168,7 +189,6 @@ void	run_thread(t_thread_task *task)
 	uint16_t	port;
 	uint32_t	scantype = scantype_value[task->scan_type];
 
-	printf("%u %u\n", env.flag.scantype, _SYN);
 	printf("hello, I'm a thread running on [%hu-%hu] :D\n", task->port_range.min, task->port_range.max);
 	port = task->port_range.min - 1;
 	while (port < task->port_range.max)
@@ -234,7 +254,7 @@ int		main(int argc, char **argv)
 
 	const u_char 		*packet;
 	struct pcap_pkthdr	header;
-
+	printf("Listen\n");
 	if (pcap_loop(session, 0, got_packet, NULL)) {
 	//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
 		ft_putendl("pcap_loop has been broken");

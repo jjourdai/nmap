@@ -149,6 +149,7 @@ struct buffer {
 	union {
 		struct tcphdr		tcp;
 		struct udphdr		udp;
+		struct icmphdr		icmp;
 	} un;
 	uint8_t	data[20];
 }__attribute__((packed)); 
