@@ -150,7 +150,7 @@ struct buffer {
 		struct tcphdr		tcp;
 		struct udphdr		udp;
 	} un;
-	uint8_t	data[128];
+	uint8_t	data[20];
 }__attribute__((packed)); 
 
 struct packets {

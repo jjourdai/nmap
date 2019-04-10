@@ -10,7 +10,7 @@ void 	init_iphdr(struct iphdr *ip, uint32_t dest, uint32_t protocol)
 	ip->tot_len = htons(sizeof(struct buffer));
 	ip->id = env.pid;
 	ip->frag_off = 0;
-	ip->ttl = 0;
+	ip->ttl = 64;
 	ip->protocol = protocol;
 	ip->check = 0;
 	ip->daddr = dest;

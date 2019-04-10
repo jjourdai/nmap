@@ -9,6 +9,15 @@ void	is_root(void)
 	exit(EXIT_FAILURE);
 }
 
+static char *flag_string[] = {
+	[TH_FIN] = "FIN",
+	[TH_SYN] = "SYN",
+	[TH_RST] = "RST",
+	[TH_PUSH] = "PUSH",
+	[TH_ACK] = "ACK",
+	[TH_URG] = "URG",
+};
+
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
 	struct packets *sniff;
@@ -18,10 +27,50 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	sniff = (struct packets*)packet;
 	dst.s_addr = sniff->buf.ip.daddr;
 	src.s_addr = sniff->buf.ip.saddr;
-	printf("SRC %s ", inet_ntoa(src));
-	printf("DST %s ", inet_ntoa(dst));
-	printf("SRC_PORT %u DST_PORT %u\n", ntohs(sniff->buf.un.tcp.th_sport), ntohs(sniff->buf.un.tcp.th_dport));
-	//printf("Sniffed packet_len [%u]\n", header->len);
+	
+	struct hostent *p;	
+	if (src.s_addr == env.my_ip) //host + env.flag.ip ne suffit pas a filtre suffisament pareil avec tcpdump
+		return ;	
+
+	if ((p = gethostbyaddr(&sniff->buf.ip.saddr, 8, AF_INET))) {
+		printf(GREEN_TEXT("SRC %s "), p->h_name);
+	} else {
+		printf(GREEN_TEXT("SRC %s "), inet_ntoa(src));
+	}
+	if ((p = gethostbyaddr(&sniff->buf.ip.daddr, 8, AF_INET))) {
+		printf(BLUE_TEXT("DST %s \n"), p->h_name);
+	} else {
+		printf(BLUE_TEXT("DST %s \n"), inet_ntoa(dst));
+	}
+	uint16_t protocol = sniff->buf.ip.protocol;
+	if (protocol == IPPROTO_TCP) {
+		uint8_t flag = sniff->buf.un.tcp.th_flags;
+		uint8_t bit = 1;
+		uint8_t flag_test;
+		while (bit <= 32) {
+			flag_test = flag & bit;
+			if (flag_test != 0)
+				printf(RED_TEXT("flag rcv %s\n"), flag_string[flag_test]);
+			bit = bit << 1;
+		}
+		printf("tcp/ ");
+		struct  servent *service;
+		if (service = getservbyport(sniff->buf.un.tcp.th_sport, NULL)) {
+			printf(YELLOW_TEXT("service %s "), service->s_name);
+		} else {
+			printf(YELLOW_TEXT("service unknown "));
+		}
+		printf(MAGENTA_TEXT("SRC_PORT %u DST_PORT %u\n"), ntohs(sniff->buf.un.tcp.th_sport), ntohs(sniff->buf.un.tcp.th_dport));
+	} else {
+		if (protocol == IPPROTO_ICMP) 
+			printf("icmp/ \n");
+
+		else if (protocol == IPPROTO_UDP)
+			printf("udp/ \n");
+		else
+			printf("Unknown protocol/ \n");
+	}
+	printf("======================================\n");
 }
 
 struct addrinfo *result_dns(char *domain)
@@ -156,7 +205,7 @@ int		main(int argc, char **argv)
 	if (pcap_lookupnet(device, &env.my_ip, &netmask, errbuf) == PCAP_ERROR) {
 		fprintf(stderr, "Can't get netmask for device %s\n", device); exit(EXIT_FAILURE);
 	}
-
+	env.my_ip += 0x01000000; //probleme sur ma machine l'ip obtenu par pcap_lookupnet n'est pas parfaitement egal
 	i = (size_t)-1;
 	while (++i < env.flag.thread)
 	{
@@ -172,7 +221,9 @@ int		main(int argc, char **argv)
 //		pthread_join(env.threads[i].id, NULL);
 
 	struct bpf_program	fp;		/* The compiled filter expression */
-	char 			filter_exp[] = "dst google.com";/* The filter expression */
+	char 			filter_exp[256];/* The filter expression */
+
+	sprintf(filter_exp, "host %s", env.flag.ip); 
 
 	if (pcap_compile(session, &fp, filter_exp, 0, env.my_ip) == PCAP_ERROR) {
 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(session)); exit(EXIT_FAILURE);
