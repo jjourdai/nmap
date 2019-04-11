@@ -31,6 +31,9 @@
 # include <fcntl.h>
 # include <pthread.h>
 # include <pcap.h>
+# include <ifaddrs.h>
+# include <sys/ioctl.h>
+# include <net/if.h>
 
 # define COUNT_OF(ptr) (sizeof(ptr) / sizeof((ptr)[0]))
 # define USAGE "ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --ip ADRESSE IP [--speedup [NOMBRE]] [--scan [TYPE]] \n"\
@@ -101,6 +104,7 @@ enum	error {
 	NO_DEST_GIVEN,
 	RANGE_MAX_EXCEEDED,
 	IP_AND_FILE_GIVEN,
+	NOT_IP_FOUND,
 };
 
 enum	e_port_state

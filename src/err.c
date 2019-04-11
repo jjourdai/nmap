@@ -14,6 +14,7 @@ char	*error_str[] = {
 	[NO_DEST_GIVEN] = RED_TEXT("%s: at least one destination must be given see --help\n"),
 	[RANGE_MAX_EXCEEDED] = RED_TEXT("%s: '%d' Port range must be >= at '%d'\n"),
 	[IP_AND_FILE_GIVEN] = RED_TEXT("%s: ip and file has been given...\n"),
+	[NOT_IP_FOUND] = RED_TEXT("%s: getifaddr don't found our ip...\n"),
 };
 
 void	handle_error(uint32_t line, char *file, t_bool fatal, enum error code, ...)

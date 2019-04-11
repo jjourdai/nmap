@@ -40,7 +40,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	struct packets *sniff;
 	struct in_addr src;
 	struct in_addr dst;
-	
+
 	sniff = (struct packets*)packet;
 	dst.s_addr = sniff->buf.ip.daddr;
 	src.s_addr = sniff->buf.ip.saddr;
@@ -129,8 +129,6 @@ struct package {
 
 int create_socket(void *domain)
 {
-	printf("%d\n", pthread_self());
-	sleep(1);
 	int		soc;
 
 	env.addr = result_dns(domain);
@@ -197,6 +195,27 @@ void	run_thread(t_thread_task *task)
 	}
 }
 
+uint32_t	get_my_ip(char *device)
+{
+	struct ifaddrs *ifaddr, *tmp;
+	struct sockaddr_in *cast;
+	uint32_t	my_ip = 0;
+
+	getifaddrs(&ifaddr);
+	tmp = ifaddr;
+	while (tmp) {
+		if (tmp->ifa_addr->sa_family == PF_INET && ft_strcmp(tmp->ifa_name, device) == 0) {
+			cast = (struct sockaddr_in*)tmp->ifa_addr;
+			my_ip = cast->sin_addr.s_addr;
+		}
+		tmp = tmp->ifa_next;
+	}
+	freeifaddrs(ifaddr);
+	if (my_ip == 0)
+		__FATAL(NOT_IP_FOUND, BINARY_NAME);
+	return (my_ip);
+}
+
 int		main(int argc, char **argv)
 {
 	int		ret;
@@ -210,7 +229,7 @@ int		main(int argc, char **argv)
 	env.socket = create_socket(env.flag.ip);
 	
 	char 				*device, errbuf[PCAP_ERRBUF_SIZE];
-	bpf_u_int32			netmask;
+	bpf_u_int32			netmask, net;
 	pcap_t				*session;
 
 	if ((device = pcap_lookupdev(errbuf)) == NULL) {
@@ -222,10 +241,11 @@ int		main(int argc, char **argv)
 		fprintf(stderr, "Couldn't open device %s: %s\n", device, errbuf); exit(EXIT_FAILURE);
 	}
 	/* get ipv4 address and netmask of a device */
-	if (pcap_lookupnet(device, &env.my_ip, &netmask, errbuf) == PCAP_ERROR) {
+	if (pcap_lookupnet(device, &net, &netmask, errbuf) == PCAP_ERROR) {
 		fprintf(stderr, "Can't get netmask for device %s\n", device); exit(EXIT_FAILURE);
 	}
-	env.my_ip += 0x01000000; //probleme sur ma machine l'ip obtenu par pcap_lookupnet n'est pas parfaitement egal
+
+	env.my_ip = get_my_ip(device);
 	i = (size_t)-1;
 	while (++i < env.flag.thread)
 	{
@@ -236,6 +256,8 @@ int		main(int argc, char **argv)
 		if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i])))
 			;
 	}
+
+	
 //	i = (size_t)-1;
 //	while (++i < env.flag.thread)
 //		pthread_join(env.threads[i].id, NULL);
@@ -245,7 +267,7 @@ int		main(int argc, char **argv)
 
 	sprintf(filter_exp, "host %s", env.flag.ip); 
 
-	if (pcap_compile(session, &fp, filter_exp, 0, env.my_ip) == PCAP_ERROR) {
+	if (pcap_compile(session, &fp, filter_exp, 0, net) == PCAP_ERROR) {
 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(session)); exit(EXIT_FAILURE);
 	}
 	if (pcap_setfilter(session, &fp) == PCAP_ERROR) {
