@@ -116,12 +116,12 @@ struct addrinfo *result_dns(char *domain)
 }
 
 struct pseudo_entete
-     {
-     unsigned long ip_source; // Adresse ip source
-     unsigned long ip_dest; // Adresse ip destination
-     char mbz; // Champs à 0
-     char type; // Type de protocole (6->TCP et 17->UDP)
-     unsigned short length; // htons( Entete TCP ou UDP + Data )
+{
+	unsigned long ip_source; // Adresse ip source
+	unsigned long ip_dest; // Adresse ip destination
+	char mbz; // Champs à 0
+	char type; // Type de protocole (6->TCP et 17->UDP)
+	unsigned short length; // htons( Entete TCP ou UDP + Data )
 }__attribute__((packed));
 
 struct package { 
@@ -249,6 +249,45 @@ uint32_t	get_my_ip(char *device)
 	return (my_ip);
 }
 
+void		init_pcap(struct pcap_info *pcap)
+{
+	if ((pcap->device = pcap_lookupdev(pcap->errbuf)) == NULL) {
+		fprintf(stderr, "Couldn't find default device: %s\n", pcap->errbuf); exit(EXIT_FAILURE);
+	}
+	printf("Device: %s\n", pcap->device);
+	/* Open the default device */
+	if ((pcap->session = pcap_open_live(pcap->device, BUFSIZ, 1, 1000, pcap->errbuf)) == NULL) {
+		fprintf(stderr, "Couldn't open device %s: %s\n", pcap->device, pcap->errbuf); exit(EXIT_FAILURE);
+	}
+	/* get ipv4 address and netmask of a device */
+	if (pcap_lookupnet(pcap->device, &pcap->net, &pcap->netmask, pcap->errbuf) == PCAP_ERROR) {
+		fprintf(stderr, "Can't get netmask for device %s\n", pcap->device); exit(EXIT_FAILURE);
+	}
+	env.my_ip = get_my_ip(pcap->device);
+}
+
+void		listen_packets(struct pcap_info *pcap)
+{
+	struct bpf_program	fp;		/* The compiled filter expression */
+	char 			filter_exp[256];/* The filter expression */
+	const u_char 		*packet;
+	struct pcap_pkthdr	header;
+
+	sprintf(filter_exp, "host %s", env.flag.ip); 
+	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR) {
+		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(pcap->session)); exit(EXIT_FAILURE);
+	}
+	if (pcap_setfilter(pcap->session, &fp) == PCAP_ERROR) {
+		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(pcap->session)); exit(EXIT_FAILURE);
+	}
+
+	if (pcap_loop(pcap->session, 0, got_packet, NULL)) {
+	//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
+		ft_putendl("pcap_loop has been broken");
+	}
+	pcap_close(pcap->session);
+}
+
 int		main(int argc, char **argv)
 {
 	int		ret;
@@ -261,24 +300,9 @@ int		main(int argc, char **argv)
 	env.pid = getpid();
 	env.socket = create_socket(env.flag.ip);
 	
-	char 				*device, errbuf[PCAP_ERRBUF_SIZE];
-	bpf_u_int32			netmask, net;
-	pcap_t				*session;
+	struct pcap_info pcap;
 
-	if ((device = pcap_lookupdev(errbuf)) == NULL) {
-		fprintf(stderr, "Couldn't find default device: %s\n", errbuf); exit(EXIT_FAILURE);
-	}
-	printf("Device: %s\n", device);
-	/* Open the default device */
-	if ((session = pcap_open_live(device, BUFSIZ, 1, 1000, errbuf)) == NULL) {
-		fprintf(stderr, "Couldn't open device %s: %s\n", device, errbuf); exit(EXIT_FAILURE);
-	}
-	/* get ipv4 address and netmask of a device */
-	if (pcap_lookupnet(device, &net, &netmask, errbuf) == PCAP_ERROR) {
-		fprintf(stderr, "Can't get netmask for device %s\n", device); exit(EXIT_FAILURE);
-	}
-
-	env.my_ip = get_my_ip(device);
+	init_pcap(&pcap);
 	i = (size_t)-1;
 	while (++i < env.flag.thread)
 	{
@@ -289,31 +313,9 @@ int		main(int argc, char **argv)
 		if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i])))
 			;
 	}
-
-	
+	listen_packets(&pcap);
 //	i = (size_t)-1;
 //	while (++i < env.flag.thread)
 //		pthread_join(env.threads[i].id, NULL);
-
-	struct bpf_program	fp;		/* The compiled filter expression */
-	char 			filter_exp[256];/* The filter expression */
-
-	sprintf(filter_exp, "host %s", env.flag.ip); 
-
-	if (pcap_compile(session, &fp, filter_exp, 0, net) == PCAP_ERROR) {
-		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(session)); exit(EXIT_FAILURE);
-	}
-	if (pcap_setfilter(session, &fp) == PCAP_ERROR) {
-		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(session)); exit(EXIT_FAILURE);
-	}
-
-	const u_char 		*packet;
-	struct pcap_pkthdr	header;
-	printf("Listen\n");
-	if (pcap_loop(session, 0, got_packet, NULL)) {
-	//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
-		ft_putendl("pcap_loop has been broken");
-	}
-	pcap_close(session);
 	return (EXIT_SUCCESS);
 }

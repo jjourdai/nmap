@@ -120,6 +120,14 @@ struct scan_type_info {
 	uint16_t flag;
 };
 
+struct pcap_info {
+	pcap_t		*session;
+	bpf_u_int32	netmask;
+	bpf_u_int32	net;
+	char		errbuf[PCAP_ERRBUF_SIZE];
+	char		*device;
+};
+
 typedef struct	s_port_range
 {
 	uint16_t	min;
@@ -140,6 +148,7 @@ typedef struct	s_thread_task
 	t_port			*ports;
 	void			(*function)(struct s_thread_task *, t_port *);
 }		t_thread_task;
+
 //struct pcap_pkthdr {
 //		struct timeval ts; /* time stamp */
 //		bpf_u_int32 caplen; /* length of portion present */
