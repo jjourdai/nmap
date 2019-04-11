@@ -83,8 +83,10 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 			printf("icmp/ \n");
 			printf("code = %s\n", icmp_code_string[sniff->buf.un.icmp.code]);
 			struct buffer *ptr;
-			ptr = sniff->buf.data;
-			printf("%u\n", ptr->ip.protocol);
+			ptr = (void*)&sniff->buf.un.icmp + sizeof(struct icmphdr);
+			printf("protocol %u\n", ptr->ip.protocol);
+			printf("flags %u\n", ptr->un.tcp.th_flags);
+			printf("dest port %u\n", ntohs(ptr->un.tcp.th_sport));
 		}
 		else if (protocol == IPPROTO_UDP)
 			printf("udp/ \n");
