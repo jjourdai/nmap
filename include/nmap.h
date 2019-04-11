@@ -115,6 +115,11 @@ enum	e_port_state
 	PORT_UNFILTERED = BIT(3)
 };
 
+struct scan_type_info {
+	uint16_t proto;
+	uint16_t flag;
+};
+
 typedef struct	s_port_range
 {
 	uint16_t	min;
@@ -134,7 +139,7 @@ typedef struct	s_thread_task
 	t_port_range		port_range;
 	t_port			*ports;
 	void			(*function)(struct s_thread_task *, t_port *);
-}					t_thread_task;
+}		t_thread_task;
 //struct pcap_pkthdr {
 //		struct timeval ts; /* time stamp */
 //		bpf_u_int32 caplen; /* length of portion present */
@@ -205,7 +210,7 @@ void	get_options(int argc, char **argv);
 void		init_iphdr(struct iphdr *ip, uint32_t dest, uint32_t protocol);
 void		init_icmphdr(struct icmphdr *hdr);
 void		init_tcphdr(struct tcphdr *hdr, uint32_t port, uint32_t flag_type);
-void		init_udp(struct udphdr *hdr);
+void		init_udphdr(struct udphdr *hdr, uint16_t port);
 void		init_env_socket(char *domain);
 void		init_receive_buffer(void);
 

@@ -32,7 +32,6 @@ static char *icmp_code_string[] = {
 	[ICMP_INFO_REPLY] = "ICMP_INFO_REPLY",    /* Information Reply		*/
 	[ICMP_ADDRESS] = "ICMP_ADDRESS",	     /* Address Mask Request		*/
 	[ICMP_ADDRESSREPLY] = "ICMP_ADDRESSREPLY",	     /* Address Mask Reply		*/
-	[NR_ICMP_TYPES] = "NR_ICMP_TYPES",		
 };
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
@@ -72,7 +71,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 			bit = bit << 1;
 		}
 		struct  servent *service;
-		if (service = getservbyport(sniff->buf.un.tcp.th_sport, NULL)) {
+		if ((service = getservbyport(sniff->buf.un.tcp.th_sport, NULL))) {
 			printf(YELLOW_TEXT("service %s "), service->s_name);
 		} else {
 			printf(YELLOW_TEXT("service unknown "));
@@ -85,8 +84,13 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 			struct buffer *ptr;
 			ptr = (void*)&sniff->buf.un.icmp + sizeof(struct icmphdr);
 			printf("protocol %u\n", ptr->ip.protocol);
-			printf("flags %u\n", ptr->un.tcp.th_flags);
-			printf("dest port %u\n", ntohs(ptr->un.tcp.th_sport));
+			if (ptr->ip.protocol == IPPROTO_TCP) {
+				printf("flags %u\n", ptr->un.tcp.th_flags);
+				printf("dest port %u\n", ntohs(ptr->un.tcp.th_sport));
+			}
+			else if (ptr->ip.protocol == IPPROTO_UDP) {
+				printf("dest port %u\n", ntohs(ptr->un.udp.uh_sport));
+			}
 		}
 		else if (protocol == IPPROTO_UDP)
 			printf("udp/ \n");
@@ -142,58 +146,85 @@ int create_socket(void *domain)
 	__ASSERTI(-1, setsockopt(soc, IPPROTO_IP, IP_HDRINCL, &opt_value, sizeof(opt_value)), "setsockopt:");
 	return (soc);
 }
-	
-void	send_packet(uint8_t scan_type, uint16_t port)
+
+struct scan_type_info info_scan[] = {
+	[_SYN] = {IPPROTO_TCP, TH_SYN,},
+	[_ACK] = {IPPROTO_TCP, TH_ACK,},
+	[_NULL] = {IPPROTO_TCP, 0,},
+	[_FIN] = {IPPROTO_TCP, TH_FIN,},
+	[_XMAS] = {IPPROTO_TCP, TH_FIN | TH_PUSH | TH_URG,},
+	[_UDP] = {IPPROTO_UDP, 0},
+};
+
+void	send_udp_packet(uint8_t scan_type, uint16_t port, struct buffer buf)
 {
-	struct buffer buf;
-	ft_bzero(&buf, sizeof(buf));
-	init_iphdr(&buf.ip, ((struct sockaddr_in*)env.addr->ai_addr)->sin_addr.s_addr, IPPROTO_TCP);
-	buf.ip.saddr = env.my_ip;
-	init_tcphdr(&buf.un.tcp, port, scan_type);
 	struct package test;
+
+	init_udphdr(&buf.un.udp, port);
+	ft_bzero(&test, sizeof(test));
+	test.psd.ip_source = buf.ip.saddr;
+	test.psd.ip_dest = buf.ip.daddr;
+	test.psd.mbz = 0;
+	test.psd.type = info_scan[scan_type].proto; //IPPROTO_TCP || IPPROTO_UDP
+	test.psd.length = htons(sizeof(struct buffer) - sizeof(struct iphdr));
+	ft_memcpy(&test.un.udp, &buf.un.udp, sizeof(struct buffer) - sizeof(struct iphdr));
+	buf.un.udp.check = compute_checksum(&test, sizeof(struct buffer) - sizeof(struct iphdr));
+	socklen_t addrlen = sizeof(struct sockaddr);
+	__ASSERTI(-1, sendto(env.socket, &buf, sizeof(buf), 0, (const struct sockaddr*)env.addr->ai_addr, addrlen), "sendto");
+}
+
+void	send_tcp_packet(uint8_t scan_type, uint16_t port, struct buffer buf)
+{
+	struct package test;
+
+	init_tcphdr(&buf.un.tcp, port, info_scan[scan_type].flag);
 
 	ft_bzero(&test, sizeof(test));
 	test.psd.ip_source = buf.ip.saddr;
 	test.psd.ip_dest = buf.ip.daddr;
 	test.psd.mbz = 0;
-	test.psd.type = IPPROTO_TCP; // | IPPROTO_UDP;
+	test.psd.type = info_scan[scan_type].proto; //IPPROTO_TCP || IPPROTO_UDP
 	test.psd.length = htons(sizeof(struct buffer) - sizeof(struct iphdr));
 	ft_memcpy(&test.un.tcp, &buf.un.tcp, sizeof(struct buffer) - sizeof(struct iphdr));
 	buf.un.tcp.check = compute_checksum(&test, sizeof(struct buffer) - sizeof(struct iphdr));
 	socklen_t addrlen = sizeof(struct sockaddr);
 	__ASSERTI(-1, sendto(env.socket, &buf, sizeof(buf), 0, (const struct sockaddr*)env.addr->ai_addr, addrlen), "sendto");
 }
-/*
-		pcap_lookupdev,  // search default device
-		pcap_open_live
-		pcap_lookupnet, 
-		pcap_geterr, 
-		pcap_setfilter
-		pcap_compile,
-		pcap_close,
-		pcap_breakloop, 
-		pcap_dispatch
-*/
 
-static int scantype_value[] = {
-	[_SYN] = TH_SYN,
-	[_NULL] = 0,
-	[_ACK] = TH_ACK,
-	[_FIN] = TH_FIN,
-	[_XMAS] = TH_FIN | TH_PUSH | TH_URG,
-//	[_UDP] = ,
-};
+void	send_packet(uint8_t scan_type, uint16_t port)
+{
+	struct buffer buf;
+	ft_bzero(&buf, sizeof(buf));
+	init_iphdr(&buf.ip, ((struct sockaddr_in*)env.addr->ai_addr)->sin_addr.s_addr, info_scan[scan_type].proto);
+	buf.ip.saddr = env.my_ip;
+	if (info_scan[scan_type].proto == IPPROTO_TCP) {
+		send_tcp_packet(scan_type, port, buf);
+	} else if (info_scan[scan_type].proto == IPPROTO_UDP) {
+		send_udp_packet(scan_type, port, buf);
+	}
+}
+
+/*
+	pcap_lookupdev,  // search default device
+	pcap_open_live
+	pcap_lookupnet, 
+	pcap_geterr, 
+	pcap_setfilter
+	pcap_compile,
+	pcap_close,
+	pcap_breakloop, 
+	pcap_dispatch
+*/
 
 void	run_thread(t_thread_task *task)
 {
 	uint16_t	port;
-	uint32_t	scantype = scantype_value[task->scan_type];
 
 	printf("hello, I'm a thread running on [%hu-%hu] :D\n", task->port_range.min, task->port_range.max);
 	port = task->port_range.min - 1;
 	while (port < task->port_range.max)
 	{
-		send_packet(scantype, ++port);
+		send_packet(task->scan_type, ++port);
 	}
 }
 

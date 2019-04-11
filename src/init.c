@@ -17,12 +17,12 @@ void 	init_iphdr(struct iphdr *ip, uint32_t dest, uint32_t protocol)
 	ip->saddr = 0;
 }
 
-void	init_udphdr(struct udphdr *udp)
+void	init_udphdr(struct udphdr *udp, uint16_t port)
 {
 	ft_bzero(udp, sizeof(*udp));
 	
-	udp->source = 0;
-	udp->dest = 0;
+	udp->source = htons(port);
+	udp->dest = htons(port);
 	udp->len = htons(sizeof(struct buffer) - sizeof(struct iphdr));
 	udp->check = 0;
 }
