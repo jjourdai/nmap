@@ -36,6 +36,7 @@
 # include <net/if.h>
 
 # define COUNT_OF(ptr) (sizeof(ptr) / sizeof((ptr)[0]))
+# define OFFSETOF(TYPE, MEMBER) ((size_t)&((TYPE *)0)->MEMBER)
 # define USAGE "ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --ip ADRESSE IP [--speedup [NOMBRE]] [--scan [TYPE]] \n"\
 				"ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --file FICHIER [--speedup [NOMBRE]] [--scan [TYPE]]\n"
 
@@ -118,6 +119,13 @@ enum	e_port_state
 struct scan_type_info {
 	uint16_t proto;
 	uint16_t flag;
+	struct {
+		uint8_t addr;
+		uint16_t type[256];
+
+
+	} response[256];
+	
 };
 
 struct pcap_info {

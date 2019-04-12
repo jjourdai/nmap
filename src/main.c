@@ -18,7 +18,7 @@ static char *tcp_flag_string[] = {
 	[TH_URG] = "URG",
 };
 
-static char *icmp_code_string[] = {
+static char *icmp_type_string[] = {
 	[ICMP_ECHOREPLY] = "ICMP_ECHOREPLY",	     /* Echo Reply			*/
 	[ICMP_DEST_UNREACH] = "ICMP_DEST_UNREACH",     /* Destination Unreachable	*/
 	[ICMP_SOURCE_QUENCH] = "ICMP_SOURCE_QUENCH",	     /* Source Quench		*/
@@ -32,6 +32,71 @@ static char *icmp_code_string[] = {
 	[ICMP_INFO_REPLY] = "ICMP_INFO_REPLY",    /* Information Reply		*/
 	[ICMP_ADDRESS] = "ICMP_ADDRESS",	     /* Address Mask Request		*/
 	[ICMP_ADDRESSREPLY] = "ICMP_ADDRESSREPLY",	     /* Address Mask Reply		*/
+}
+;
+/* Codes for UNREACH. */
+#define ICMP_NET_UNREACH	0	/* Network Unreachable		*/
+#define ICMP_HOST_UNREACH	1	/* Host Unreachable		*/
+#define ICMP_PROT_UNREACH	2	/* Protocol Unreachable		*/
+#define ICMP_PORT_UNREACH	3	/* Port Unreachable		*/
+#define ICMP_FRAG_NEEDED	4	/* Fragmentation Needed/DF set	*/
+#define ICMP_SR_FAILED		5	/* Source Route failed		*/
+#define ICMP_NET_UNKNOWN	6
+#define ICMP_HOST_UNKNOWN	7
+#define ICMP_HOST_ISOLATED	8
+#define ICMP_NET_ANO		9
+#define ICMP_HOST_ANO		10
+#define ICMP_NET_UNR_TOS	11
+#define ICMP_HOST_UNR_TOS	12
+#define ICMP_PKT_FILTERED	13	/* Packet filtered */
+#define ICMP_PREC_VIOLATION	14	/* Precedence violation */
+#define ICMP_PREC_CUTOFF	15	/* Precedence cut off */
+
+uint32_t protocol_ret[] = {
+	[IPPROTO_TCP] = OFFSETOF(struct buffer, un.tcp.th_flags),
+	[IPPROTO_ICMP] = OFFSETOF(struct buffer, un.icmp) + sizeof(struct icmphdr),
+};
+
+struct scan_type_info info_scan[] = {
+	[_SYN] = {IPPROTO_TCP, TH_SYN, 
+		{
+			[IPPROTO_TCP] = {
+				OFFSETOF(struct buffer, un.tcp.th_flags),
+				{
+					[TH_SYN | TH_ACK] = PORT_OPEN,
+					[TH_RST] = PORT_CLOSED,
+				},
+			},
+			[IPPROTO_ICMP] = {
+				OFFSETOF(struct buffer, un.icmp) + sizeof(struct icmphdr) + OFFSETOF(struct icmphdr, code),
+				{
+					[ICMP_DEST_UNREACH] = PORT_FILTERED,
+				},
+			},
+		},
+	},
+	[_ACK] = {IPPROTO_TCP, TH_ACK, 
+		{
+			[IPPROTO_TCP] = {
+				OFFSETOF(struct buffer, un.tcp.th_flags),
+				{
+					[TH_RST] = PORT_CLOSED,
+				},
+			},
+			[IPPROTO_ICMP] = {
+				OFFSETOF(struct buffer, un.icmp) + sizeof(struct icmphdr) + OFFSETOF(struct icmphdr, code),
+				{
+					[ICMP_DEST_UNREACH] = PORT_FILTERED,
+				},
+			},
+		},
+	},
+/*
+	[_NULL] = {IPPROTO_TCP, 0, },
+	[_FIN] = {IPPROTO_TCP, TH_FIN, },
+	[_XMAS] = {IPPROTO_TCP, TH_FIN | TH_PUSH | TH_URG, },
+	[_UDP] = {IPPROTO_UDP, 0, },
+*/
 };
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
@@ -47,7 +112,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	struct hostent *p;	
 	if (src.s_addr == env.my_ip) //host + env.flag.ip ne suffit pas a filtre suffisament pareil avec tcpdump
 		return ;	
-
 	if ((p = gethostbyaddr(&sniff->buf.ip.saddr, 8, AF_INET))) {
 		printf(GREEN_TEXT("SRC %s "), p->h_name);
 	} else {
@@ -59,6 +123,10 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		printf(BLUE_TEXT("DST %s \n"), inet_ntoa(dst));
 	}
 	uint16_t protocol = sniff->buf.ip.protocol;
+
+//	printf("%u\n", test[sniff->buf.ip.protocol]);
+	printf("%u\n", protocol_ret[sniff->buf.ip.protocol]);
+/*
 	if (protocol == IPPROTO_TCP) {
 		printf("tcp/ ");
 		uint8_t flag = sniff->buf.un.tcp.th_flags;
@@ -80,7 +148,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	} else {
 		if (protocol == IPPROTO_ICMP) {
 			printf("icmp/ \n");
-			printf("code = %s\n", icmp_code_string[sniff->buf.un.icmp.code]);
+			printf("code = %s\n", icmp_type_string[sniff->buf.un.icmp.code]);
 			struct buffer *ptr;
 			ptr = (void*)&sniff->buf.un.icmp + sizeof(struct icmphdr);
 			printf("protocol %u\n", ptr->ip.protocol);
@@ -97,6 +165,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		else
 			printf("Unknown protocol/ \n");
 	}
+*/
 	printf("======================================\n");
 }
 
@@ -146,15 +215,6 @@ int create_socket(void *domain)
 	__ASSERTI(-1, setsockopt(soc, IPPROTO_IP, IP_HDRINCL, &opt_value, sizeof(opt_value)), "setsockopt:");
 	return (soc);
 }
-
-struct scan_type_info info_scan[] = {
-	[_SYN] = {IPPROTO_TCP, TH_SYN,},
-	[_ACK] = {IPPROTO_TCP, TH_ACK,},
-	[_NULL] = {IPPROTO_TCP, 0,},
-	[_FIN] = {IPPROTO_TCP, TH_FIN,},
-	[_XMAS] = {IPPROTO_TCP, TH_FIN | TH_PUSH | TH_URG,},
-	[_UDP] = {IPPROTO_UDP, 0},
-};
 
 void	send_udp_packet(uint8_t scan_type, uint16_t port, struct buffer buf)
 {
@@ -280,7 +340,6 @@ void		listen_packets(struct pcap_info *pcap)
 	if (pcap_setfilter(pcap->session, &fp) == PCAP_ERROR) {
 		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(pcap->session)); exit(EXIT_FAILURE);
 	}
-
 	if (pcap_loop(pcap->session, 0, got_packet, NULL)) {
 	//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
 		ft_putendl("pcap_loop has been broken");
@@ -310,8 +369,8 @@ int		main(int argc, char **argv)
 		env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
 		env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
 		env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
-		if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i])))
-			;
+		if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i]))) {
+		}
 	}
 	listen_packets(&pcap);
 //	i = (size_t)-1;
@@ -319,3 +378,5 @@ int		main(int argc, char **argv)
 //		pthread_join(env.threads[i].id, NULL);
 	return (EXIT_SUCCESS);
 }
+
+
