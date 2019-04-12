@@ -119,13 +119,6 @@ enum	e_port_state
 struct scan_type_info {
 	uint16_t proto;
 	uint16_t flag;
-	struct {
-		uint8_t addr;
-		uint16_t type[256];
-
-
-	} response[256];
-	
 };
 
 struct pcap_info {

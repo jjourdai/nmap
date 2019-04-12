@@ -36,67 +36,163 @@ static char *icmp_type_string[] = {
 ;
 /* Codes for UNREACH. */
 #define ICMP_NET_UNREACH	0	/* Network Unreachable		*/
-#define ICMP_HOST_UNREACH	1	/* Host Unreachable		*/
-#define ICMP_PROT_UNREACH	2	/* Protocol Unreachable		*/
-#define ICMP_PORT_UNREACH	3	/* Port Unreachable		*/
 #define ICMP_FRAG_NEEDED	4	/* Fragmentation Needed/DF set	*/
 #define ICMP_SR_FAILED		5	/* Source Route failed		*/
 #define ICMP_NET_UNKNOWN	6
 #define ICMP_HOST_UNKNOWN	7
 #define ICMP_HOST_ISOLATED	8
-#define ICMP_NET_ANO		9
-#define ICMP_HOST_ANO		10
 #define ICMP_NET_UNR_TOS	11
 #define ICMP_HOST_UNR_TOS	12
-#define ICMP_PKT_FILTERED	13	/* Packet filtered */
 #define ICMP_PREC_VIOLATION	14	/* Precedence violation */
 #define ICMP_PREC_CUTOFF	15	/* Precedence cut off */
 
-uint32_t protocol_ret[] = {
+#define ICMP_HOST_UNREACH	1	/* Host Unreachable		*/
+#define ICMP_PROT_UNREACH	2	/* Protocol Unreachable		*/
+#define ICMP_PORT_UNREACH	3	/* Port Unreachable		*/
+#define ICMP_NET_ANO		9
+#define ICMP_HOST_ANO		10
+#define ICMP_PKT_FILTERED	13	/* Packet filtered */
+const uint32_t protocol_ret[] = {
 	[IPPROTO_TCP] = OFFSETOF(struct buffer, un.tcp.th_flags),
 	[IPPROTO_ICMP] = OFFSETOF(struct buffer, un.icmp) + sizeof(struct icmphdr),
 };
 
-struct scan_type_info info_scan[] = {
-	[_SYN] = {IPPROTO_TCP, TH_SYN, 
-		{
-			[IPPROTO_TCP] = {
-				OFFSETOF(struct buffer, un.tcp.th_flags),
-				{
-					[TH_SYN | TH_ACK] = PORT_OPEN,
-					[TH_RST] = PORT_CLOSED,
-				},
-			},
-			[IPPROTO_ICMP] = {
-				OFFSETOF(struct buffer, un.icmp) + sizeof(struct icmphdr) + OFFSETOF(struct icmphdr, code),
-				{
-					[ICMP_DEST_UNREACH] = PORT_FILTERED,
-				},
-			},
-		},
-	},
-	[_ACK] = {IPPROTO_TCP, TH_ACK, 
-		{
-			[IPPROTO_TCP] = {
-				OFFSETOF(struct buffer, un.tcp.th_flags),
-				{
-					[TH_RST] = PORT_CLOSED,
-				},
-			},
-			[IPPROTO_ICMP] = {
-				OFFSETOF(struct buffer, un.icmp) + sizeof(struct icmphdr) + OFFSETOF(struct icmphdr, code),
-				{
-					[ICMP_DEST_UNREACH] = PORT_FILTERED,
-				},
-			},
-		},
-	},
-/*
+const struct scan_type_info info_scan[] = {
+	[_SYN] = {IPPROTO_TCP, TH_SYN, },
 	[_NULL] = {IPPROTO_TCP, 0, },
 	[_FIN] = {IPPROTO_TCP, TH_FIN, },
 	[_XMAS] = {IPPROTO_TCP, TH_FIN | TH_PUSH | TH_URG, },
 	[_UDP] = {IPPROTO_UDP, 0, },
-*/
+};
+
+const char *port_status[] = {
+	[PORT_OPEN] = "PORT OPEN",
+	[PORT_FILTERED] = "PORT FILTERED",
+	[PORT_CLOSED] = "PORT CLOSED",
+	[PORT_UNFILTERED] = "PORT UNFILTERED",
+};
+
+void	response_tcp(struct buffer *res) 
+{
+	static const uint8_t res_type[][128] = {
+		[_SYN] = {
+			[TH_SYN | TH_ACK] = PORT_OPEN,
+			[TH_RST] = PORT_CLOSED,
+		},
+		[_NULL] = {
+			[TH_RST] = PORT_CLOSED,
+		},
+		[_FIN] = {
+			[TH_RST] = PORT_CLOSED,
+		},
+		[_XMAS] = {
+			[TH_RST] = PORT_CLOSED,
+		},
+		[_ACK] = {
+			[TH_RST] = PORT_UNFILTERED,
+		},
+	};
+	printf("%u/tcp return ", ntohs(res->un.tcp.th_dport));
+	printf("%s ", port_status[res_type[env.flag.scantype][res->un.tcp.th_flags]]);
+	struct  servent *service;
+	if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
+		printf("service %s\n", service->s_name);
+	} else {
+		printf("service unknown\n");
+	}
+}
+
+void	response_icmp(struct buffer *res) 
+{
+	static const uint8_t res_type[][128][128] = {
+		[_SYN] = {
+			[ICMP_DEST_UNREACH] = {
+				[ICMP_HOST_UNREACH] = PORT_FILTERED,
+				[ICMP_PROT_UNREACH] = PORT_FILTERED,
+				[ICMP_PORT_UNREACH] = PORT_FILTERED,
+				[ICMP_NET_ANO] = PORT_FILTERED,
+				[ICMP_HOST_ANO] = PORT_FILTERED,
+				[ICMP_PKT_FILTERED] = PORT_FILTERED,
+			},
+		},
+		[_NULL] = {
+			[ICMP_DEST_UNREACH] = {
+				[ICMP_HOST_UNREACH] = PORT_FILTERED,
+				[ICMP_PROT_UNREACH] = PORT_FILTERED,
+				[ICMP_PORT_UNREACH] = PORT_FILTERED,
+				[ICMP_NET_ANO] = PORT_FILTERED,
+				[ICMP_HOST_ANO] = PORT_FILTERED,
+				[ICMP_PKT_FILTERED] = PORT_FILTERED,
+			},
+		},
+		[_FIN] = {
+			[ICMP_DEST_UNREACH] = {
+				[ICMP_HOST_UNREACH] = PORT_FILTERED,
+				[ICMP_PROT_UNREACH] = PORT_FILTERED,
+				[ICMP_PORT_UNREACH] = PORT_FILTERED,
+				[ICMP_NET_ANO] = PORT_FILTERED,
+				[ICMP_HOST_ANO] = PORT_FILTERED,
+				[ICMP_PKT_FILTERED] = PORT_FILTERED,
+			},
+		},
+		[_XMAS] = {
+			[ICMP_DEST_UNREACH] = {
+				[ICMP_HOST_UNREACH] = PORT_FILTERED,
+				[ICMP_PROT_UNREACH] = PORT_FILTERED,
+				[ICMP_PORT_UNREACH] = PORT_FILTERED,
+				[ICMP_NET_ANO] = PORT_FILTERED,
+				[ICMP_HOST_ANO] = PORT_FILTERED,
+				[ICMP_PKT_FILTERED] = PORT_FILTERED,
+			},
+		},
+		[_ACK] = {
+			[ICMP_DEST_UNREACH] = {
+				[ICMP_HOST_UNREACH] = PORT_FILTERED,
+				[ICMP_PROT_UNREACH] = PORT_FILTERED,
+				[ICMP_PORT_UNREACH] = PORT_FILTERED,
+				[ICMP_NET_ANO] = PORT_FILTERED,
+				[ICMP_HOST_ANO] = PORT_FILTERED,
+				[ICMP_PKT_FILTERED] = PORT_FILTERED,
+			},
+		},
+		[_UDP] = {
+			[ICMP_DEST_UNREACH] = {
+				[ICMP_HOST_UNREACH] = PORT_FILTERED,
+				[ICMP_PROT_UNREACH] = PORT_FILTERED,
+				[ICMP_NET_ANO] = PORT_FILTERED,
+				[ICMP_HOST_ANO] = PORT_FILTERED,
+				[ICMP_PKT_FILTERED] = PORT_FILTERED,
+				[ICMP_PORT_UNREACH] = PORT_CLOSED,
+			},
+		},
+	};
+	struct buffer *ptr = (void*)&res->un.icmp + sizeof(struct icmphdr);
+	printf("%u/icmp return ", ntohs(ptr->un.tcp.th_dport));
+	printf("%s ", port_status[res_type[env.flag.scantype][res->un.icmp.type][res->un.icmp.code]]);
+	struct  servent *service;
+	if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
+		printf("service %s \n", service->s_name);
+	} else {
+		printf("service unknown \n");
+	}
+}
+
+void	response_udp(struct buffer *res) 
+{	
+	printf("%u/udp return ", ntohs(res->un.udp.uh_sport));
+	printf("%s ", port_status[PORT_OPEN]);
+	struct  servent *service;
+	if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
+		printf("service %s\n", service->s_name);
+	} else {
+		printf("service unknown\n");
+	}
+}
+
+void (*res_type[])(struct buffer *res) = {
+	[IPPROTO_TCP] = response_tcp,
+	[IPPROTO_UDP] = response_udp,
+	[IPPROTO_ICMP] = response_icmp,
 };
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
@@ -123,9 +219,8 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		printf(BLUE_TEXT("DST %s \n"), inet_ntoa(dst));
 	}
 	uint16_t protocol = sniff->buf.ip.protocol;
-
-//	printf("%u\n", test[sniff->buf.ip.protocol]);
-	printf("%u\n", protocol_ret[sniff->buf.ip.protocol]);
+	if (protocol < sizeof(res_type))
+		res_type[protocol](&sniff->buf);
 /*
 	if (protocol == IPPROTO_TCP) {
 		printf("tcp/ ");
