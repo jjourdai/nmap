@@ -182,8 +182,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	sniff = (struct packets*)packet;
 	dst.s_addr = sniff->buf.ip.daddr;
 	src.s_addr = sniff->buf.ip.saddr;
-	if (src.s_addr == env.my_ip) //host + env.flag.ip ne suffit pas a filtre suffisament pareil avec tcpdump
-		return ;	
 	if ((p = gethostbyaddr(&sniff->buf.ip.saddr, 8, AF_INET))) {
 		printf(GREEN_TEXT("SRC %s "), p->h_name);
 	} else {
@@ -351,7 +349,6 @@ void	run_thread(t_thread_task *task)
 {
 	uint16_t	port;
 
-	printf("hello, I'm a thread running on [%hu-%hu] :D\n", task->port_range.min, task->port_range.max);
 	port = task->port_range.min - 1;
 	while (port < task->port_range.max)
 	{
@@ -403,7 +400,8 @@ void		listen_packets(struct pcap_info *pcap)
 	const u_char 		*packet;
 	struct pcap_pkthdr	header;
 
-	sprintf(filter_exp, "src host %s", env.flag.ip); 
+	sprintf(filter_exp, "src host %s and src portrange %hu-%hu", env.flag.ip, env.flag.port_range.min, env.flag.port_range.max); 
+	printf("expression: %s\n", filter_exp);
 	/* Open the default device */
 	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR) {
 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(pcap->session)); exit(EXIT_FAILURE);
@@ -411,6 +409,7 @@ void		listen_packets(struct pcap_info *pcap)
 	if (pcap_setfilter(pcap->session, &fp) == PCAP_ERROR) {
 		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(pcap->session)); exit(EXIT_FAILURE);
 	}
+
 	if (pcap_loop(pcap->session, 0, got_packet, NULL)) {
 	//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
 		ft_putendl("pcap_loop has been broken");
@@ -446,9 +445,6 @@ int		main(int argc, char **argv)
 {
 	int		ret;
 	size_t	i;
-
-	is_root();
-	pthread_t thread1;
 	
 	get_options(argc, argv);
 	env.pid = getpid();

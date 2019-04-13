@@ -6,7 +6,7 @@
 #    By: polooo <polooo@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2017/01/17 13:28:01 by jjourdai          #+#    #+#              #
-#    Updated: 2019/04/09 14:42:34 by polooo           ###   ########.fr        #
+#    Updated: 2019/04/13 17:50:23 by polooo           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -56,6 +56,8 @@ all:
 $(NAME): $(OBJ)
 	make -C ./libft/ -j$(JOBS)
 	$(CC) $^ -o $(NAME) $(CFLAGS) $(LDFLAGS) $(LDLIBS)
+	sudo chown root:root $(NAME)
+	sudo chmod 4755 $(NAME)
 
 $(OBJ_PATH):
 	mkdir -p $@
