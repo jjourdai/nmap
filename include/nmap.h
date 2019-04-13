@@ -34,8 +34,10 @@
 # include <ifaddrs.h>
 # include <sys/ioctl.h>
 # include <net/if.h>
+# include <signal.h>
 
 # define COUNT_OF(ptr) (sizeof(ptr) / sizeof((ptr)[0]))
+# define OFFSETOF(TYPE, MEMBER) ((size_t)&((TYPE *)0)->MEMBER)
 # define USAGE "ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --ip ADRESSE IP [--speedup [NOMBRE]] [--scan [TYPE]] \n"\
 				"ft_nmap [--help] [--ports [NOMBRE/PLAGE]] --file FICHIER [--speedup [NOMBRE]] [--scan [TYPE]]\n"
 
@@ -115,6 +117,19 @@ enum	e_port_state
 	PORT_UNFILTERED = BIT(3)
 };
 
+struct scan_type_info {
+	uint16_t proto;
+	uint16_t flag;
+};
+
+struct pcap_info {
+	pcap_t		*session;
+	bpf_u_int32	netmask;
+	bpf_u_int32	net;
+	char		errbuf[PCAP_ERRBUF_SIZE];
+	char		*device;
+};
+
 typedef struct	s_port_range
 {
 	uint16_t	min;
@@ -134,7 +149,8 @@ typedef struct	s_thread_task
 	t_port_range		port_range;
 	t_port			*ports;
 	void			(*function)(struct s_thread_task *, t_port *);
-}					t_thread_task;
+}		t_thread_task;
+
 //struct pcap_pkthdr {
 //		struct timeval ts; /* time stamp */
 //		bpf_u_int32 caplen; /* length of portion present */
@@ -175,9 +191,11 @@ struct nmap {
 	t_thread_task	threads[THREAD_MAX];
 	t_port			ports[RANGE_MAX];
 	uint32_t	my_ip;
+	uint8_t		current_scan;
 	uint32_t	pid;
 	uint32_t	socket;
 	struct addrinfo	*addr;
+	struct pcap_info pcap;
 };
 
 typedef struct parameters {
@@ -194,6 +212,11 @@ struct params_getter {
 	uint8_t			dup;
 };
 
+struct scan_type {
+	uint8_t flag;
+	char	*str;
+};
+
 struct nmap env;
 
 /* params.c */
@@ -205,7 +228,7 @@ void	get_options(int argc, char **argv);
 void		init_iphdr(struct iphdr *ip, uint32_t dest, uint32_t protocol);
 void		init_icmphdr(struct icmphdr *hdr);
 void		init_tcphdr(struct tcphdr *hdr, uint32_t port, uint32_t flag_type);
-void		init_udp(struct udphdr *hdr);
+void		init_udphdr(struct udphdr *hdr, uint16_t port);
 void		init_env_socket(char *domain);
 void		init_receive_buffer(void);
 
