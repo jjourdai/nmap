@@ -34,6 +34,7 @@
 # include <ifaddrs.h>
 # include <sys/ioctl.h>
 # include <net/if.h>
+# include <signal.h>
 
 # define COUNT_OF(ptr) (sizeof(ptr) / sizeof((ptr)[0]))
 # define OFFSETOF(TYPE, MEMBER) ((size_t)&((TYPE *)0)->MEMBER)
@@ -190,9 +191,11 @@ struct nmap {
 	t_thread_task	threads[THREAD_MAX];
 	t_port			ports[RANGE_MAX];
 	uint32_t	my_ip;
+	uint8_t		current_scan;
 	uint32_t	pid;
 	uint32_t	socket;
 	struct addrinfo	*addr;
+	struct pcap_info pcap;
 };
 
 typedef struct parameters {
@@ -207,6 +210,11 @@ struct params_getter {
 	void	(*f)(char *, void *ptr);	
 	void			*var;
 	uint8_t			dup;
+};
+
+struct scan_type {
+	uint8_t flag;
+	char	*str;
 };
 
 struct nmap env;

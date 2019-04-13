@@ -32,29 +32,6 @@ static char *icmp_type_string[] = {
 	[ICMP_INFO_REPLY] = "ICMP_INFO_REPLY",    /* Information Reply		*/
 	[ICMP_ADDRESS] = "ICMP_ADDRESS",	     /* Address Mask Request		*/
 	[ICMP_ADDRESSREPLY] = "ICMP_ADDRESSREPLY",	     /* Address Mask Reply		*/
-}
-;
-/* Codes for UNREACH. */
-#define ICMP_NET_UNREACH	0	/* Network Unreachable		*/
-#define ICMP_FRAG_NEEDED	4	/* Fragmentation Needed/DF set	*/
-#define ICMP_SR_FAILED		5	/* Source Route failed		*/
-#define ICMP_NET_UNKNOWN	6
-#define ICMP_HOST_UNKNOWN	7
-#define ICMP_HOST_ISOLATED	8
-#define ICMP_NET_UNR_TOS	11
-#define ICMP_HOST_UNR_TOS	12
-#define ICMP_PREC_VIOLATION	14	/* Precedence violation */
-#define ICMP_PREC_CUTOFF	15	/* Precedence cut off */
-
-#define ICMP_HOST_UNREACH	1	/* Host Unreachable		*/
-#define ICMP_PROT_UNREACH	2	/* Protocol Unreachable		*/
-#define ICMP_PORT_UNREACH	3	/* Port Unreachable		*/
-#define ICMP_NET_ANO		9
-#define ICMP_HOST_ANO		10
-#define ICMP_PKT_FILTERED	13	/* Packet filtered */
-const uint32_t protocol_ret[] = {
-	[IPPROTO_TCP] = OFFSETOF(struct buffer, un.tcp.th_flags),
-	[IPPROTO_ICMP] = OFFSETOF(struct buffer, un.icmp) + sizeof(struct icmphdr),
 };
 
 const struct scan_type_info info_scan[] = {
@@ -93,7 +70,7 @@ void	response_tcp(struct buffer *res)
 		},
 	};
 	printf("%u/tcp return ", ntohs(res->un.tcp.th_dport));
-	printf("%s ", port_status[res_type[env.flag.scantype][res->un.tcp.th_flags]]);
+	printf("%s ", port_status[res_type[env.current_scan][res->un.tcp.th_flags]]);
 	struct  servent *service;
 	if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
 		printf("service %s\n", service->s_name);
@@ -168,7 +145,7 @@ void	response_icmp(struct buffer *res)
 	};
 	struct buffer *ptr = (void*)&res->un.icmp + sizeof(struct icmphdr);
 	printf("%u/icmp return ", ntohs(ptr->un.tcp.th_dport));
-	printf("%s ", port_status[res_type[env.flag.scantype][res->un.icmp.type][res->un.icmp.code]]);
+	printf("%s ", port_status[res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
 	struct  servent *service;
 	if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
 		printf("service %s \n", service->s_name);
@@ -200,12 +177,12 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	struct packets *sniff;
 	struct in_addr src;
 	struct in_addr dst;
+	struct hostent *p;	
 
 	sniff = (struct packets*)packet;
 	dst.s_addr = sniff->buf.ip.daddr;
 	src.s_addr = sniff->buf.ip.saddr;
-	
-	struct hostent *p;	
+	alarm(1);
 	if (src.s_addr == env.my_ip) //host + env.flag.ip ne suffit pas a filtre suffisament pareil avec tcpdump
 		return ;	
 	if ((p = gethostbyaddr(&sniff->buf.ip.saddr, 8, AF_INET))) {
@@ -409,8 +386,7 @@ void		init_pcap(struct pcap_info *pcap)
 	if ((pcap->device = pcap_lookupdev(pcap->errbuf)) == NULL) {
 		fprintf(stderr, "Couldn't find default device: %s\n", pcap->errbuf); exit(EXIT_FAILURE);
 	}
-	printf("Device: %s\n", pcap->device);
-	/* Open the default device */
+//	printf("Device: %s\n", pcap->device);
 	if ((pcap->session = pcap_open_live(pcap->device, BUFSIZ, 1, 1000, pcap->errbuf)) == NULL) {
 		fprintf(stderr, "Couldn't open device %s: %s\n", pcap->device, pcap->errbuf); exit(EXIT_FAILURE);
 	}
@@ -429,6 +405,7 @@ void		listen_packets(struct pcap_info *pcap)
 	struct pcap_pkthdr	header;
 
 	sprintf(filter_exp, "host %s", env.flag.ip); 
+	/* Open the default device */
 	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR) {
 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(pcap->session)); exit(EXIT_FAILURE);
 	}
@@ -439,8 +416,32 @@ void		listen_packets(struct pcap_info *pcap)
 	//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
 		ft_putendl("pcap_loop has been broken");
 	}
-	pcap_close(pcap->session);
 }
+
+void		signal_handler(int signal)
+{
+	if (signal == SIGALRM) {
+		pcap_breakloop(env.pcap.session);	
+	}
+}
+
+void		init_sigaction(void)
+{
+	struct sigaction sig = {
+		.sa_handler = signal_handler,
+	};
+	//ne pas oublier de closed les SIGALARM
+	sigaction(SIGALRM, &sig, NULL);
+}
+
+static char *scan_type_string[] = {
+	[_SYN] = "SYN",
+	[_ACK] = "ACK",
+	[_NULL] = "NULL",
+	[_XMAS] = "XMAS",
+	[_FIN] = "FIN",
+	[_UDP] = "UDP",
+};
 
 int		main(int argc, char **argv)
 {
@@ -453,25 +454,31 @@ int		main(int argc, char **argv)
 	get_options(argc, argv);
 	env.pid = getpid();
 	env.socket = create_socket(env.flag.ip);
-	
-	struct pcap_info pcap;
+	init_sigaction();
+	init_pcap(&env.pcap);
 
-	init_pcap(&pcap);
-	i = (size_t)-1;
-	while (++i < env.flag.thread)
-	{
-		env.threads[i].scan_type = env.flag.scantype;
-		env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
-		env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
-		env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
-		if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i]))) {
+	uint8_t bit = 1;
+	while (bit <= 32) {
+		env.current_scan = env.flag.scantype & bit;
+		if (env.current_scan != 0) {
+			printf(RED_TEXT("Perform Scan %s\n"), scan_type_string[env.current_scan]);
+			i = (size_t)-1;
+			while (++i < env.flag.thread)
+			{
+				env.threads[i].scan_type = env.current_scan;
+				env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
+				env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
+				env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
+				if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i]))) {
+				}
+			}
+			listen_packets(&env.pcap);
 		}
+		bit = bit << 1;
 	}
-	listen_packets(&pcap);
 //	i = (size_t)-1;
 //	while (++i < env.flag.thread)
 //		pthread_join(env.threads[i].id, NULL);
+	pcap_close(env.pcap.session);
 	return (EXIT_SUCCESS);
 }
-
-

@@ -101,19 +101,13 @@ static void	get_port(char *str, void *ptr)
 	}
 }
 
-struct scan_type {
-	uint8_t flag;
-	char 	*str;
-};
-
-static struct scan_type type[] = {
+struct scan_type type[] = {
 	{_SYN, "SYN"},
 	{_NULL, "NULL"},
 	{_ACK, "ACK"},
 	{_FIN, "FIN"},
 	{_XMAS, "XMAS"},
 	{_UDP, "UDP"},
-	//	{_ALL, "ALL"},
 };
 
 static void	get_scantype(char *str, void *ptr)
