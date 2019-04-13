@@ -182,7 +182,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	sniff = (struct packets*)packet;
 	dst.s_addr = sniff->buf.ip.daddr;
 	src.s_addr = sniff->buf.ip.saddr;
-	alarm(1);
 	if (src.s_addr == env.my_ip) //host + env.flag.ip ne suffit pas a filtre suffisament pareil avec tcpdump
 		return ;	
 	if ((p = gethostbyaddr(&sniff->buf.ip.saddr, 8, AF_INET))) {
@@ -404,7 +403,7 @@ void		listen_packets(struct pcap_info *pcap)
 	const u_char 		*packet;
 	struct pcap_pkthdr	header;
 
-	sprintf(filter_exp, "host %s", env.flag.ip); 
+	sprintf(filter_exp, "src host %s", env.flag.ip); 
 	/* Open the default device */
 	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR) {
 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(pcap->session)); exit(EXIT_FAILURE);
@@ -469,16 +468,18 @@ int		main(int argc, char **argv)
 				env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
 				env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
 				env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
-				if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i]))) {
+				if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i])))
+				{
 				}
 			}
+			i = (size_t)-1;
+			while (++i < env.flag.thread)
+				pthread_join(env.threads[i].id, NULL);
+			alarm(1);
 			listen_packets(&env.pcap);
 		}
 		bit = bit << 1;
 	}
-//	i = (size_t)-1;
-//	while (++i < env.flag.thread)
-//		pthread_join(env.threads[i].id, NULL);
 	pcap_close(env.pcap.session);
 	return (EXIT_SUCCESS);
 }
