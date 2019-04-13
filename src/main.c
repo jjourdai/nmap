@@ -182,8 +182,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	sniff = (struct packets*)packet;
 	dst.s_addr = sniff->buf.ip.daddr;
 	src.s_addr = sniff->buf.ip.saddr;
-	if (src.s_addr == env.my_ip) //host + env.flag.ip ne suffit pas a filtre suffisament pareil avec tcpdump
-		return ;	
 	if ((p = gethostbyaddr(&sniff->buf.ip.saddr, 8, AF_INET))) {
 		printf(GREEN_TEXT("SRC %s "), p->h_name);
 	} else {
@@ -394,10 +392,6 @@ void		init_pcap(struct pcap_info *pcap)
 		fprintf(stderr, "Can't get netmask for device %s\n", pcap->device); exit(EXIT_FAILURE);
 	}
 	env.my_ip = get_my_ip(pcap->device);
-}
-
-void		listen_packets(struct pcap_info *pcap)
-{
 	struct bpf_program	fp;		/* The compiled filter expression */
 	char 			filter_exp[256];/* The filter expression */
 	const u_char 		*packet;
@@ -411,10 +405,7 @@ void		listen_packets(struct pcap_info *pcap)
 	if (pcap_setfilter(pcap->session, &fp) == PCAP_ERROR) {
 		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(pcap->session)); exit(EXIT_FAILURE);
 	}
-	if (pcap_loop(pcap->session, 0, got_packet, NULL)) {
-	//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
-		ft_putendl("pcap_loop has been broken");
-	}
+	pcap_freecode(&fp);
 }
 
 void		signal_handler(int signal)
@@ -476,7 +467,10 @@ int		main(int argc, char **argv)
 			while (++i < env.flag.thread)
 				pthread_join(env.threads[i].id, NULL);
 			alarm(1);
-			listen_packets(&env.pcap);
+			if (pcap_loop(env.pcap.session, 0, got_packet, NULL)) {
+			//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
+			ft_putendl("pcap_loop has been broken");
+			}
 		}
 		bit = bit << 1;
 	}
