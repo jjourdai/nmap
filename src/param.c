@@ -6,7 +6,7 @@
 /*   By: polooo <polooo@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/09/12 12:28:59 by jjourdai          #+#    #+#             */
-/*   Updated: 2019/04/09 14:42:40 by polooo           ###   ########.fr       */
+/*   Updated: 2019/04/13 18:44:42 by polooo           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -262,7 +262,7 @@ void	get_options(int argc, char **argv)
 	env.flag.scantype = _ALL;
 	env.flag.thread = 1;
 	env.flag.port_range.min = 1;	
-	env.flag.port_range.max = 1024;	
+	env.flag.port_range.max = 1024;
 	/**********************/
 	parameters = get_params(argv, argc, (uint32_t*)&env.flag.value);
 	if (env.flag.value & F_HELP) {

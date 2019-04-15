@@ -6,7 +6,7 @@
 /*   By: polooo <polooo@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/12/17 18:12:39 by jjourdai          #+#    #+#             */
-/*   Updated: 2019/04/09 14:42:37 by polooo           ###   ########.fr       */
+/*   Updated: 2019/04/14 23:28:23 by polooo           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,6 +35,7 @@
 # include <sys/ioctl.h>
 # include <net/if.h>
 # include <signal.h>
+# include <poll.h>
 
 # define COUNT_OF(ptr) (sizeof(ptr) / sizeof((ptr)[0]))
 # define OFFSETOF(TYPE, MEMBER) ((size_t)&((TYPE *)0)->MEMBER)
@@ -194,8 +195,11 @@ struct nmap {
 	uint8_t		current_scan;
 	uint32_t	pid;
 	uint32_t	socket;
-	struct addrinfo	*addr;
-	struct pcap_info pcap;
+	uint32_t	timeout;
+	struct addrinfo		*addr;
+	struct pcap_info	pcap;
+	struct pcap_info	pcap_local;
+	struct pcap_info	*current;
 };
 
 typedef struct parameters {

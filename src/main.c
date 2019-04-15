@@ -55,20 +55,38 @@ void	response_tcp(struct buffer *res)
 		[_SYN] = {
 			[TH_SYN | TH_ACK] = PORT_OPEN,
 			[TH_RST] = PORT_CLOSED,
+			[TH_RST | TH_ACK] = PORT_CLOSED,
 		},
 		[_NULL] = {
 			[TH_RST] = PORT_CLOSED,
+			[TH_RST | TH_ACK] = PORT_CLOSED,
 		},
 		[_FIN] = {
 			[TH_RST] = PORT_CLOSED,
+			[TH_RST | TH_ACK] = PORT_CLOSED,
 		},
 		[_XMAS] = {
 			[TH_RST] = PORT_CLOSED,
+			[TH_RST | TH_ACK] = PORT_CLOSED,
 		},
 		[_ACK] = {
 			[TH_RST] = PORT_UNFILTERED,
 		},
 	};
+
+	if (res->ip.id == env.pid)
+		return ;
+/*
+	uint8_t flag = res->un.tcp.th_flags;
+		uint8_t bit = 1;
+		uint8_t flag_test;
+		while (bit <= 32) {
+			flag_test = flag & bit;
+			if (flag_test != 0)
+				printf(RED_TEXT("flag rcv %s\n"), tcp_flag_string[flag_test]);
+			bit = bit << 1;
+	}
+*/
 	printf("%u/tcp return ", ntohs(res->un.tcp.th_dport));
 	printf("%s ", port_status[res_type[env.current_scan][res->un.tcp.th_flags]]);
 	struct  servent *service;
@@ -143,6 +161,9 @@ void	response_icmp(struct buffer *res)
 			},
 		},
 	};
+
+	if (res->ip.id == env.pid)
+		return ;
 	struct buffer *ptr = (void*)&res->un.icmp + sizeof(struct icmphdr);
 	printf("%u/icmp return ", ntohs(ptr->un.tcp.th_dport));
 	printf("%s ", port_status[res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
@@ -156,6 +177,9 @@ void	response_icmp(struct buffer *res)
 
 void	response_udp(struct buffer *res) 
 {	
+	if (res->ip.id == env.pid)
+		return ;
+
 	printf("%u/udp return ", ntohs(res->un.udp.uh_sport));
 	printf("%s ", port_status[PORT_OPEN]);
 	struct  servent *service;
@@ -177,7 +201,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	struct packets *sniff;
 	struct in_addr src;
 	struct in_addr dst;
-	struct hostent *p;	
+	struct hostent *p;
 
 	sniff = (struct packets*)packet;
 	dst.s_addr = sniff->buf.ip.daddr;
@@ -349,7 +373,6 @@ void	run_thread(t_thread_task *task)
 {
 	uint16_t	port;
 
-	printf("hello, I'm a thread running on [%hu-%hu] :D\n", task->port_range.min, task->port_range.max);
 	port = task->port_range.min - 1;
 	while (port < task->port_range.max)
 	{
@@ -378,40 +401,64 @@ uint32_t	get_my_ip(char *device)
 	return (my_ip);
 }
 
-void		init_pcap(struct pcap_info *pcap)
+void		init_pcap(struct pcap_info *pcap, int def)
 {
-	if ((pcap->device = pcap_lookupdev(pcap->errbuf)) == NULL) {
-		fprintf(stderr, "Couldn't find default device: %s\n", pcap->errbuf); exit(EXIT_FAILURE);
+	if (def == 1)
+		pcap->device = "lo";
+	else if ((pcap->device = pcap_lookupdev(pcap->errbuf)) == NULL)
+	{
+		fprintf(stderr, "Couldn't find default device: %s\n", pcap->errbuf);
+		exit(EXIT_FAILURE);
 	}
-//	printf("Device: %s\n", pcap->device);
-	if ((pcap->session = pcap_open_live(pcap->device, BUFSIZ, 1, 1000, pcap->errbuf)) == NULL) {
-		fprintf(stderr, "Couldn't open device %s: %s\n", pcap->device, pcap->errbuf); exit(EXIT_FAILURE);
+	if ((pcap->session = pcap_open_live(pcap->device, BUFSIZ, 1, 1000, pcap->errbuf)) == NULL)
+	{
+		fprintf(stderr, "Couldn't open device %s: %s\n", pcap->device, pcap->errbuf);
+		exit(EXIT_FAILURE);
 	}
 	/* get ipv4 address and netmask of a device */
-	if (pcap_lookupnet(pcap->device, &pcap->net, &pcap->netmask, pcap->errbuf) == PCAP_ERROR) {
-		fprintf(stderr, "Can't get netmask for device %s\n", pcap->device); exit(EXIT_FAILURE);
+	if (pcap_lookupnet(pcap->device, &pcap->net, &pcap->netmask, pcap->errbuf) == PCAP_ERROR)
+	{
+		fprintf(stderr, "Can't get netmask for device %s\n", pcap->device);
+		exit(EXIT_FAILURE);
 	}
-	env.my_ip = get_my_ip(pcap->device);
 	struct bpf_program	fp;		/* The compiled filter expression */
-	char 			filter_exp[256];/* The filter expression */
+	char 				filter_exp[256];	/* The filter expression */
 	const u_char 		*packet;
 	struct pcap_pkthdr	header;
 
-	sprintf(filter_exp, "src host %s", env.flag.ip); 
+	env.current = pcap;
+
+	sprintf(filter_exp, "src host %s and src portrange %hu-%hu", env.flag.ip, env.flag.port_range.min, env.flag.port_range.max);
 	/* Open the default device */
-	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR) {
-		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(pcap->session)); exit(EXIT_FAILURE);
+	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR)
+	{
+		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(pcap->session));
+		exit(EXIT_FAILURE);
 	}
-	if (pcap_setfilter(pcap->session, &fp) == PCAP_ERROR) {
-		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(pcap->session)); exit(EXIT_FAILURE);
+	if (pcap_setfilter(pcap->session, &fp) == PCAP_ERROR)
+	{
+		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(pcap->session));
+		exit(EXIT_FAILURE);
 	}
 	pcap_freecode(&fp);
 }
 
+void		listen_packets(struct pcap_info *pcap)
+{
+	alarm(env.timeout);
+	env.current = pcap;
+	if (pcap_loop(pcap->session, 0, got_packet, NULL))
+	{
+	//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
+		ft_putendl("pcap_loop has been broken");
+	}
+}
+
 void		signal_handler(int signal)
 {
-	if (signal == SIGALRM) {
-		pcap_breakloop(env.pcap.session);	
+	if (signal == SIGALRM)
+	{
+		pcap_breakloop(env.current->session);
 	}
 }
 
@@ -437,15 +484,15 @@ int		main(int argc, char **argv)
 {
 	int		ret;
 	size_t	i;
-
-	is_root();
-	pthread_t thread1;
 	
 	get_options(argc, argv);
 	env.pid = getpid();
 	env.socket = create_socket(env.flag.ip);
+	env.timeout = 2;
 	init_sigaction();
-	init_pcap(&env.pcap);
+	init_pcap(&env.pcap, 0);
+	init_pcap(&env.pcap_local, 1);
+	env.my_ip = get_my_ip(env.pcap.device);
 
 	uint8_t bit = 1;
 	while (bit <= 32) {
@@ -466,14 +513,18 @@ int		main(int argc, char **argv)
 			i = (size_t)-1;
 			while (++i < env.flag.thread)
 				pthread_join(env.threads[i].id, NULL);
-			alarm(1);
+/*
 			if (pcap_loop(env.pcap.session, 0, got_packet, NULL)) {
 			//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
 			ft_putendl("pcap_loop has been broken");
 			}
+*/
+			listen_packets(&env.pcap);
+			listen_packets(&env.pcap_local);
 		}
 		bit = bit << 1;
 	}
 	pcap_close(env.pcap.session);
+	pcap_close(env.pcap_local.session);
 	return (EXIT_SUCCESS);
 }
