@@ -262,7 +262,7 @@ void	get_options(int argc, char **argv)
 	env.flag.scantype = _ALL;
 	env.flag.thread = 1;
 	env.flag.port_range.min = 1;	
-	env.flag.port_range.max = 1024;
+	env.flag.port_range.max = RANGE_MAX;
 	/**********************/
 	parameters = get_params(argv, argc, (uint32_t*)&env.flag.value);
 	if (env.flag.value & F_HELP) {
@@ -276,6 +276,7 @@ void	get_options(int argc, char **argv)
 	if (env.flag.scantype != _ALL) {
 		env.flag.scantype = ~(env.flag.scantype & _ALL);
 	}
+	env.flag.port_range.diff = env.flag.port_range.max - env.flag.port_range.min;
 	print_scan_configuration();
 	env.flag.scantype = (env.flag.scantype & _ALL);
 	//	list_remove(&parameters, remove_content);

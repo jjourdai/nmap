@@ -9,6 +9,20 @@ void	is_root(void)
 	exit(EXIT_FAILURE);
 }
 
+struct response_data res_info[_UDP + 1] = {0};
+
+void	init_response_data_struct(void)
+{
+	ft_bzero(&res_info, sizeof(res_info));
+}
+
+uint64_t	handle_timer(const struct timeval *now, const struct timeval *past)
+{
+	uint64_t time = ((now->tv_sec) << 20) | (now->tv_usec);
+	uint64_t time2 = ((past->tv_sec) << 20) | (past->tv_usec);
+	return time - time2;
+}
+
 static char *tcp_flag_string[] = {
 	[TH_FIN] = "FIN",
 	[TH_SYN] = "SYN",
@@ -76,6 +90,7 @@ void	response_tcp(struct buffer *res)
 
 	if (res->ip.id == env.pid)
 		return ;
+	res_info[env.current_scan].ports[ntohs(res->un.tcp.th_dport) - env.flag.port_range.min] = res_type[env.current_scan][res->un.tcp.th_flags];
 /*
 	uint8_t flag = res->un.tcp.th_flags;
 		uint8_t bit = 1;
@@ -95,6 +110,7 @@ void	response_tcp(struct buffer *res)
 	} else {
 		printf("service unknown\n");
 	}
+	
 }
 
 void	response_icmp(struct buffer *res) 
@@ -161,33 +177,49 @@ void	response_icmp(struct buffer *res)
 			},
 		},
 	};
-
+	
 	if (res->ip.id == env.pid)
 		return ;
 	struct buffer *ptr = (void*)&res->un.icmp + sizeof(struct icmphdr);
-	printf("%u/icmp return ", ntohs(ptr->un.tcp.th_dport));
-	printf("%s ", port_status[res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
-	struct  servent *service;
-	if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
-		printf("service %s \n", service->s_name);
+	if (ptr->ip.protocol == IPPROTO_TCP) {
+		printf("%u/icmp return ", ntohs(ptr->un.tcp.th_dport));
+		printf("%s ", port_status[res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
+		struct  servent *service;
+		if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
+			printf("service %s \n", service->s_name);
+		} else {
+			printf("service unknown \n");
+		}
+		res_info[env.current_scan].ports[ntohs(ptr->un.tcp.th_dport) - env.flag.port_range.min] = res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code];
+	} else if (ptr->ip.protocol == IPPROTO_UDP) {
+		printf("%u/icmp return ", ntohs(ptr->un.udp.uh_sport));
+		printf("%s ", port_status[res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
+		struct  servent *service;
+		if ((service = getservbyport(res->un.udp.uh_sport, NULL))) {
+			printf("service %s \n", service->s_name);
+		} else {
+			printf("service unknown \n");
+		}
+		res_info[env.current_scan].ports[ntohs(ptr->un.udp.uh_dport) - env.flag.port_range.min] = res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code];
 	} else {
-		printf("service unknown \n");
+		printf("Unknown protocol %s %u\n", __FILE__, __LINE__);
 	}
 }
 
 void	response_udp(struct buffer *res) 
-{	
+{
 	if (res->ip.id == env.pid)
 		return ;
 
 	printf("%u/udp return ", ntohs(res->un.udp.uh_sport));
 	printf("%s ", port_status[PORT_OPEN]);
 	struct  servent *service;
-	if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
+	if ((service = getservbyport(res->un.udp.uh_sport, NULL))) {
 		printf("service %s\n", service->s_name);
 	} else {
 		printf("service unknown\n");
 	}
+	res_info[env.current_scan].ports[ntohs(res->un.udp.uh_sport) - env.flag.port_range.min] = PORT_OPEN;
 }
 
 void (*res_type[])(struct buffer *res) = {
@@ -376,7 +408,10 @@ void	run_thread(t_thread_task *task)
 	port = task->port_range.min - 1;
 	while (port < task->port_range.max)
 	{
-		send_packet(task->scan_type, ++port);
+//		printf("%u %u\n", port - env.flag.port_range.min + 1, res_info[env.current_scan].ports[port - env.flag.port_range.min + 1]);
+		if (res_info[env.current_scan].ports[port - env.flag.port_range.min + 1] == TIMEOUT)
+			send_packet(task->scan_type, port + 1);
+		++port;
 	}
 }
 
@@ -427,8 +462,7 @@ void		init_pcap(struct pcap_info *pcap, int def)
 	struct pcap_pkthdr	header;
 
 	env.current = pcap;
-
-	sprintf(filter_exp, "src host %s and src portrange %hu-%hu", env.flag.ip, env.flag.port_range.min, env.flag.port_range.max);
+	sprintf(filter_exp, "src host %s and (src portrange %hu-%hu or icmp)", env.flag.ip, env.flag.port_range.min, env.flag.port_range.max);
 	/* Open the default device */
 	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR)
 	{
@@ -480,51 +514,70 @@ static char *scan_type_string[] = {
 	[_UDP] = "UDP",
 };
 
+/*	
+	[_ACK] = "ACK",
+	[_NULL] = "NULL",
+	[_XMAS] = "XMAS",
+	[_FIN] = "FIN",
+	[_UDP] = "UDP",
+*/
+
+int gettimeofday(struct timeval *tv, struct timezone *tz);
+
 int		main(int argc, char **argv)
 {
 	int		ret;
-	size_t	i;
+	size_t		i;
+	struct timeval	initial_time;
+	struct timeval	now;
 	
 	get_options(argc, argv);
+	gettimeofday(&initial_time, NULL);
 	env.pid = getpid();
 	env.socket = create_socket(env.flag.ip);
 	env.timeout = 2;
 	init_sigaction();
 	init_pcap(&env.pcap, 0);
-	init_pcap(&env.pcap_local, 1);
+//	init_pcap(&env.pcap_local, 1);
 	env.my_ip = get_my_ip(env.pcap.device);
-
+	init_response_data_struct();
+	uint8_t	current_try;
 	uint8_t bit = 1;
 	while (bit <= 32) {
 		env.current_scan = env.flag.scantype & bit;
 		if (env.current_scan != 0) {
-			printf(RED_TEXT("Perform Scan %s\n"), scan_type_string[env.current_scan]);
-			i = (size_t)-1;
-			while (++i < env.flag.thread)
-			{
-				env.threads[i].scan_type = env.current_scan;
-				env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
-				env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
-				env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
-				if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i])))
+			current_try = 0;
+			for (; current_try < RETRY_MAX; current_try++) {
+				printf(RED_TEXT("Perform Scan %s try %u\n"), scan_type_string[env.current_scan], current_try);
+				i = (size_t)-1;
+				while (++i < env.flag.thread)
 				{
+					env.threads[i].scan_type = env.current_scan;
+					env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
+					env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
+					env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
+					if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i])))
+					{
+					}
 				}
+				i = (size_t)-1;
+				while (++i < env.flag.thread)
+					pthread_join(env.threads[i].id, NULL);
+				listen_packets(&env.pcap);
+//				listen_packets(&env.pcap_local);
 			}
-			i = (size_t)-1;
-			while (++i < env.flag.thread)
-				pthread_join(env.threads[i].id, NULL);
 /*
 			if (pcap_loop(env.pcap.session, 0, got_packet, NULL)) {
 			//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
 			ft_putendl("pcap_loop has been broken");
 			}
 */
-			listen_packets(&env.pcap);
-			listen_packets(&env.pcap_local);
 		}
 		bit = bit << 1;
 	}
 	pcap_close(env.pcap.session);
-	pcap_close(env.pcap_local.session);
+//	pcap_close(env.pcap_local.session);
+	gettimeofday(&now, NULL);
+	printf("Scan took : %.5f nsecs\n", (double)handle_timer(&now, &initial_time) / 1000000);
 	return (EXIT_SUCCESS);
 }

@@ -112,6 +112,7 @@ enum	error {
 
 enum	e_port_state
 {
+	TIMEOUT = 0,
 	PORT_OPEN = BIT(0),
 	PORT_FILTERED = BIT(1),
 	PORT_CLOSED = BIT(2),
@@ -135,6 +136,7 @@ typedef struct	s_port_range
 {
 	uint16_t	min;
 	uint16_t	max;
+	uint16_t	diff;
 }				t_port_range;
 
 typedef struct	s_port
@@ -151,12 +153,6 @@ typedef struct	s_thread_task
 	t_port			*ports;
 	void			(*function)(struct s_thread_task *, t_port *);
 }		t_thread_task;
-
-//struct pcap_pkthdr {
-//		struct timeval ts; /* time stamp */
-//		bpf_u_int32 caplen; /* length of portion present */
-//		bpf_u_int32 len; /* length this packet (off wire) */	
-//};
 
 #define ETHER_ADDR_LEN	6
 struct sniff_ethernet {
@@ -178,6 +174,12 @@ struct buffer {
 struct packets {
 	struct sniff_ethernet	eth;
 	struct buffer		buf;
+};
+
+#define RETRY_MAX 3
+
+struct response_data {
+	uint8_t ports[RANGE_MAX];
 };
 
 struct nmap {
