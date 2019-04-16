@@ -21,7 +21,7 @@ void	init_udphdr(struct udphdr *udp, uint16_t port)
 {
 	ft_bzero(udp, sizeof(*udp));
 	
-	udp->source = htons(port);
+	udp->source = htons(SOURCE_PORT);
 	udp->dest = htons(port);
 	udp->len = htons(sizeof(struct buffer) - sizeof(struct iphdr));
 	udp->check = 0;
@@ -31,7 +31,7 @@ void	init_tcphdr(struct tcphdr *tcp, uint32_t port, uint32_t flag_type)
 {
 	ft_bzero(tcp, sizeof(*tcp));
 	
-	tcp->th_sport = htons(port);
+	tcp->th_sport = htons(SOURCE_PORT);
 	tcp->th_dport = htons(port);
 	tcp->th_seq = 0;
 	tcp->th_ack = 0;

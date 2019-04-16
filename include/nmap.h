@@ -59,8 +59,10 @@
 # define DUP_ON 1
 # define DUP_OFF 0
 # define RANGE_MAX 1024
+# define SOURCE_PORT 48752
+# define RETRY_MAX 3
 
-# define DEBUG 1
+# define DEBUG 0
 # define __FATAL(X, ...) handle_error(__LINE__, __FILE__, FATAL, X, __VA_ARGS__)
 # define __ASSERTI(ERR_VALUE, RETURN_VALUE, STRING) x_int(ERR_VALUE, RETURN_VALUE, STRING, __FILE__, __LINE__)
 # define __ASSERT(ERR_VALUE, RETURN_VALUE, STRING) x_void(ERR_VALUE, RETURN_VALUE, STRING, __FILE__, __LINE__)
@@ -136,7 +138,6 @@ typedef struct	s_port_range
 {
 	uint16_t	min;
 	uint16_t	max;
-	uint16_t	diff;
 }				t_port_range;
 
 typedef struct	s_port
@@ -175,8 +176,6 @@ struct packets {
 	struct sniff_ethernet	eth;
 	struct buffer		buf;
 };
-
-#define RETRY_MAX 3
 
 struct response_data {
 	uint8_t ports[RANGE_MAX];

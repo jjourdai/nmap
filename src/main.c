@@ -23,6 +23,27 @@ uint64_t	handle_timer(const struct timeval *now, const struct timeval *past)
 	return time - time2;
 }
 
+static char *scan_type_string[] = {
+	[_SYN] = "SYN",
+	[_ACK] = "ACK",
+	[_NULL] = "NULL",
+	[_XMAS] = "XMAS",
+	[_FIN] = "FIN",
+	[_UDP] = "UDP",
+};
+
+/*
+static char *timeout_result[] = {
+	[_SYN] = "Filtered",
+	[_ACK] = "Filtered",
+	[_NULL] = "Open|Filtered",
+	[_FIN] = "Open|Filtered",
+	[_XMAS] = "Open|Filtered",
+	[_UDP] = "Open|Filtered",
+};
+*/
+
+/*
 static char *tcp_flag_string[] = {
 	[TH_FIN] = "FIN",
 	[TH_SYN] = "SYN",
@@ -31,22 +52,24 @@ static char *tcp_flag_string[] = {
 	[TH_ACK] = "ACK",
 	[TH_URG] = "URG",
 };
-
+*/
+/*
 static char *icmp_type_string[] = {
-	[ICMP_ECHOREPLY] = "ICMP_ECHOREPLY",	     /* Echo Reply			*/
-	[ICMP_DEST_UNREACH] = "ICMP_DEST_UNREACH",     /* Destination Unreachable	*/
-	[ICMP_SOURCE_QUENCH] = "ICMP_SOURCE_QUENCH",	     /* Source Quench		*/
-	[ICMP_REDIRECT]	= "ICMP_REDIRECT",	     /* Redirect (change route)	*/
-	[ICMP_ECHO] = "ICMP_ECHO",   /* Echo Request			*/
-	[ICMP_TIME_EXCEEDED] = "ICMP_TIME_EXCEEDED",   /* Time Exceeded		*/
-	[ICMP_PARAMETERPROB] = "ICMP_PARAMETERPROB",	     /* Parameter Problem		*/
-	[ICMP_TIMESTAMP] = "ICMP_TIMESTAMP",	     /* Timestamp Request		*/
-	[ICMP_TIMESTAMPREPLY] = "ICMP_TIMESTAMPREPLY",   /* Timestamp Reply		*/
-	[ICMP_INFO_REQUEST] = "ICMP_INFO_REQUEST",   /* Information Request		*/
-	[ICMP_INFO_REPLY] = "ICMP_INFO_REPLY",    /* Information Reply		*/
-	[ICMP_ADDRESS] = "ICMP_ADDRESS",	     /* Address Mask Request		*/
-	[ICMP_ADDRESSREPLY] = "ICMP_ADDRESSREPLY",	     /* Address Mask Reply		*/
+	[ICMP_ECHOREPLY] = "ICMP_ECHOREPLY",	     
+	[ICMP_DEST_UNREACH] = "ICMP_DEST_UNREACH",   
+	[ICMP_SOURCE_QUENCH] = "ICMP_SOURCE_QUENCH", 
+	[ICMP_REDIRECT]	= "ICMP_REDIRECT",	     
+	[ICMP_ECHO] = "ICMP_ECHO",  
+	[ICMP_TIME_EXCEEDED] = "ICMP_TIME_EXCEEDED", 
+	[ICMP_PARAMETERPROB] = "ICMP_PARAMETERPROB", 
+	[ICMP_TIMESTAMP] = "ICMP_TIMESTAMP",	     
+	[ICMP_TIMESTAMPREPLY] = "ICMP_TIMESTAMPREPLY",
+	[ICMP_INFO_REQUEST] = "ICMP_INFO_REQUEST",   
+	[ICMP_INFO_REPLY] = "ICMP_INFO_REPLY",    
+	[ICMP_ADDRESS] = "ICMP_ADDRESS",	     
+	[ICMP_ADDRESSREPLY] = "ICMP_ADDRESSREPLY",   
 };
+*/
 
 const struct scan_type_info info_scan[] = {
 	[_SYN] = {IPPROTO_TCP, TH_SYN, },
@@ -57,10 +80,10 @@ const struct scan_type_info info_scan[] = {
 };
 
 const char *port_status[] = {
-	[PORT_OPEN] = "PORT OPEN",
-	[PORT_FILTERED] = "PORT FILTERED",
-	[PORT_CLOSED] = "PORT CLOSED",
-	[PORT_UNFILTERED] = "PORT UNFILTERED",
+	[PORT_OPEN] = "Open",
+	[PORT_FILTERED] = "Filtered",
+	[PORT_CLOSED] = "Closed",
+	[PORT_UNFILTERED] = "Unfiltered",
 };
 
 void	response_tcp(struct buffer *res) 
@@ -87,30 +110,18 @@ void	response_tcp(struct buffer *res)
 			[TH_RST] = PORT_UNFILTERED,
 		},
 	};
-
-	if (res->ip.id == env.pid)
-		return ;
-	res_info[env.current_scan].ports[ntohs(res->un.tcp.th_dport) - env.flag.port_range.min] = res_type[env.current_scan][res->un.tcp.th_flags];
-/*
-	uint8_t flag = res->un.tcp.th_flags;
-		uint8_t bit = 1;
-		uint8_t flag_test;
-		while (bit <= 32) {
-			flag_test = flag & bit;
-			if (flag_test != 0)
-				printf(RED_TEXT("flag rcv %s\n"), tcp_flag_string[flag_test]);
-			bit = bit << 1;
-	}
-*/
-	printf("%u/tcp return ", ntohs(res->un.tcp.th_dport));
-	printf("%s ", port_status[res_type[env.current_scan][res->un.tcp.th_flags]]);
+	res_info[env.current_scan].ports[ntohs(res->un.tcp.th_sport) - env.flag.port_range.min] = res_type[env.current_scan][res->un.tcp.th_flags];
+	#if DEBUG == 1
 	struct  servent *service;
+	
+	printf("%u/tcp return ", ntohs(res->un.tcp.th_sport));
+	printf("%s ", port_status[res_type[env.current_scan][res->un.tcp.th_flags]]);
 	if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
 		printf("service %s\n", service->s_name);
 	} else {
 		printf("service unknown\n");
 	}
-	
+	#endif
 }
 
 void	response_icmp(struct buffer *res) 
@@ -177,40 +188,43 @@ void	response_icmp(struct buffer *res)
 			},
 		},
 	};
-	
-	if (res->ip.id == env.pid)
-		return ;
+
 	struct buffer *ptr = (void*)&res->un.icmp + sizeof(struct icmphdr);
 	if (ptr->ip.protocol == IPPROTO_TCP) {
+		#if DEBUG == 1
 		printf("%u/icmp return ", ntohs(ptr->un.tcp.th_dport));
 		printf("%s ", port_status[res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
 		struct  servent *service;
-		if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
+		if ((service = getservbyport(res->un.tcp.th_dport, NULL))) {
 			printf("service %s \n", service->s_name);
 		} else {
 			printf("service unknown \n");
 		}
+		#endif
 		res_info[env.current_scan].ports[ntohs(ptr->un.tcp.th_dport) - env.flag.port_range.min] = res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code];
 	} else if (ptr->ip.protocol == IPPROTO_UDP) {
-		printf("%u/icmp return ", ntohs(ptr->un.udp.uh_sport));
+		#if DEBUG == 1
+		printf("%u/icmp return ", ntohs(ptr->un.udp.uh_dport));
 		printf("%s ", port_status[res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
 		struct  servent *service;
-		if ((service = getservbyport(res->un.udp.uh_sport, NULL))) {
+		if ((service = getservbyport(res->un.udp.uh_dport, NULL))) {
 			printf("service %s \n", service->s_name);
 		} else {
 			printf("service unknown \n");
 		}
+		#endif
 		res_info[env.current_scan].ports[ntohs(ptr->un.udp.uh_dport) - env.flag.port_range.min] = res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code];
 	} else {
+		#if DEBUG == 1
 		printf("Unknown protocol %s %u\n", __FILE__, __LINE__);
+		#endif
 	}
 }
 
 void	response_udp(struct buffer *res) 
 {
-	if (res->ip.id == env.pid)
-		return ;
-
+	res_info[env.current_scan].ports[ntohs(res->un.udp.uh_sport) - env.flag.port_range.min] = PORT_OPEN;
+	#if DEBUG == 1
 	printf("%u/udp return ", ntohs(res->un.udp.uh_sport));
 	printf("%s ", port_status[PORT_OPEN]);
 	struct  servent *service;
@@ -219,7 +233,7 @@ void	response_udp(struct buffer *res)
 	} else {
 		printf("service unknown\n");
 	}
-	res_info[env.current_scan].ports[ntohs(res->un.udp.uh_sport) - env.flag.port_range.min] = PORT_OPEN;
+	#endif
 }
 
 void (*res_type[])(struct buffer *res) = {
@@ -231,11 +245,14 @@ void (*res_type[])(struct buffer *res) = {
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
 	struct packets *sniff;
+	sniff = (struct packets*)packet;
+
+	uint16_t protocol = sniff->buf.ip.protocol;
+	#if DEBUG == 1
 	struct in_addr src;
 	struct in_addr dst;
 	struct hostent *p;
 
-	sniff = (struct packets*)packet;
 	dst.s_addr = sniff->buf.ip.daddr;
 	src.s_addr = sniff->buf.ip.saddr;
 	if ((p = gethostbyaddr(&sniff->buf.ip.saddr, 8, AF_INET))) {
@@ -248,50 +265,9 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	} else {
 		printf(BLUE_TEXT("DST %s \n"), inet_ntoa(dst));
 	}
-	uint16_t protocol = sniff->buf.ip.protocol;
-	if (protocol < sizeof(res_type))
+	#endif
+	if (protocol < sizeof(res_type) && sniff->buf.ip.id != env.pid)
 		res_type[protocol](&sniff->buf);
-/*
-	if (protocol == IPPROTO_TCP) {
-		printf("tcp/ ");
-		uint8_t flag = sniff->buf.un.tcp.th_flags;
-		uint8_t bit = 1;
-		uint8_t flag_test;
-		while (bit <= 32) {
-			flag_test = flag & bit;
-			if (flag_test != 0)
-				printf(RED_TEXT("flag rcv %s\n"), tcp_flag_string[flag_test]);
-			bit = bit << 1;
-		}
-		struct  servent *service;
-		if ((service = getservbyport(sniff->buf.un.tcp.th_sport, NULL))) {
-			printf(YELLOW_TEXT("service %s "), service->s_name);
-		} else {
-			printf(YELLOW_TEXT("service unknown "));
-		}
-		printf(MAGENTA_TEXT("SRC_PORT %u DST_PORT %u\n"), ntohs(sniff->buf.un.tcp.th_sport), ntohs(sniff->buf.un.tcp.th_dport));
-	} else {
-		if (protocol == IPPROTO_ICMP) {
-			printf("icmp/ \n");
-			printf("code = %s\n", icmp_type_string[sniff->buf.un.icmp.code]);
-			struct buffer *ptr;
-			ptr = (void*)&sniff->buf.un.icmp + sizeof(struct icmphdr);
-			printf("protocol %u\n", ptr->ip.protocol);
-			if (ptr->ip.protocol == IPPROTO_TCP) {
-				printf("flags %u\n", ptr->un.tcp.th_flags);
-				printf("dest port %u\n", ntohs(ptr->un.tcp.th_sport));
-			}
-			else if (ptr->ip.protocol == IPPROTO_UDP) {
-				printf("dest port %u\n", ntohs(ptr->un.udp.uh_sport));
-			}
-		}
-		else if (protocol == IPPROTO_UDP)
-			printf("udp/ \n");
-		else
-			printf("Unknown protocol/ \n");
-	}
-*/
-	printf("======================================\n");
 }
 
 struct addrinfo *result_dns(char *domain)
@@ -389,18 +365,6 @@ void	send_packet(uint8_t scan_type, uint16_t port)
 	}
 }
 
-/*
-	pcap_lookupdev,  // search default device
-	pcap_open_live
-	pcap_lookupnet, 
-	pcap_geterr, 
-	pcap_setfilter
-	pcap_compile,
-	pcap_close,
-	pcap_breakloop, 
-	pcap_dispatch
-*/
-
 void	run_thread(t_thread_task *task)
 {
 	uint16_t	port;
@@ -408,7 +372,6 @@ void	run_thread(t_thread_task *task)
 	port = task->port_range.min - 1;
 	while (port < task->port_range.max)
 	{
-//		printf("%u %u\n", port - env.flag.port_range.min + 1, res_info[env.current_scan].ports[port - env.flag.port_range.min + 1]);
 		if (res_info[env.current_scan].ports[port - env.flag.port_range.min + 1] == TIMEOUT)
 			send_packet(task->scan_type, port + 1);
 		++port;
@@ -458,11 +421,10 @@ void		init_pcap(struct pcap_info *pcap, int def)
 	}
 	struct bpf_program	fp;		/* The compiled filter expression */
 	char 				filter_exp[256];	/* The filter expression */
-	const u_char 		*packet;
-	struct pcap_pkthdr	header;
 
 	env.current = pcap;
-	sprintf(filter_exp, "src host %s and (src portrange %hu-%hu or icmp)", env.flag.ip, env.flag.port_range.min, env.flag.port_range.max);
+//	sprintf(filter_exp, "src host %s and (src portrange %hu-%hu or icmp)", env.flag.ip, env.flag.port_range.min, env.flag.port_range.max);
+	sprintf(filter_exp, "src host %s and (dst port %u or icmp)", env.flag.ip, SOURCE_PORT);
 	/* Open the default device */
 	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR)
 	{
@@ -484,7 +446,6 @@ void		listen_packets(struct pcap_info *pcap)
 	if (pcap_loop(pcap->session, 0, got_packet, NULL))
 	{
 	//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
-		ft_putendl("pcap_loop has been broken");
 	}
 }
 
@@ -505,40 +466,86 @@ void		init_sigaction(void)
 	sigaction(SIGALRM, &sig, NULL);
 }
 
-static char *scan_type_string[] = {
-	[_SYN] = "SYN",
-	[_ACK] = "ACK",
-	[_NULL] = "NULL",
-	[_XMAS] = "XMAS",
-	[_FIN] = "FIN",
-	[_UDP] = "UDP",
-};
+/*
+void		display_result(void)
+{
+	uint16_t port, range = env.flag.port_range.max - env.flag.port_range.min, real_port;
+	uint8_t bit, scan_type;
+	char	buffer[2048];
+	size_t	len_buffer;
+	struct  servent *service;
 
-/*	
-	[_ACK] = "ACK",
-	[_NULL] = "NULL",
-	[_XMAS] = "XMAS",
-	[_FIN] = "FIN",
-	[_UDP] = "UDP",
+	printf(GREEN_TEXT("%-8s") CYAN_TEXT("%-20s") RED_TEXT("%-28s\n"), "Ports", "Service Name", "Results"); 
+	printf("----------------------------------------------------------------------------\n");
+	for (port = 0; port < range + 1; port++) {
+		real_port = port + env.flag.port_range.min;
+		bit = 1;
+		if ((service = getservbyport(htons(real_port), NULL))) {
+			printf(GREEN_TEXT("%-10u ")  CYAN_TEXT("%-15s "), real_port, service->s_name);
+		} else {
+			printf(GREEN_TEXT("%-10u ") CYAN_TEXT("%-15s "), real_port, "Unassigned");
+		}
+		len_buffer = 0;
+		while (bit <= 32) {
+			scan_type = env.flag.scantype & bit;
+			if (scan_type != 0) {
+				if (res_info[scan_type].ports[port] != TIMEOUT) {
+					len_buffer += sprintf(buffer + len_buffer, "%s(%s) ", scan_type_string[scan_type], port_status[res_info[scan_type].ports[port]]);
+				} else {
+					len_buffer += sprintf(buffer + len_buffer, "%s(%s) ", scan_type_string[scan_type], timeout_result[scan_type]);
+				}
+			}
+			bit = bit << 1;
+		}
+		printf(RED_TEXT("%s\n"), buffer);
+	}
+}
 */
 
-int gettimeofday(struct timeval *tv, struct timezone *tz);
+void		display_result(void)
+{
+	uint16_t port, range = env.flag.port_range.max - env.flag.port_range.min, real_port;
+	uint8_t bit, scan_type;
+	struct  servent *service;
 
-int		main(int argc, char **argv)
+	printf(GREEN_TEXT("%-10s") RED_TEXT("%-10s") CYAN_TEXT("%-25s\n"), "Ports", "Results", "Service Name"); 
+	printf("----------------------------------------------------------------------------\n");
+	for (port = 0; port < range + 1; port++) {
+		real_port = port + env.flag.port_range.min;
+		bit = 1;
+		while (bit <= 32) {
+			scan_type = env.flag.scantype & bit;
+			if (scan_type != 0) {
+				if (res_info[scan_type].ports[port] == PORT_OPEN || res_info[scan_type].ports[port] == PORT_CLOSED) {
+					if (scan_type == _UDP) {
+						printf(GREEN_TEXT("udp/%-6u")  RED_TEXT("%-10s"), real_port, port_status[res_info[scan_type].ports[port]]);
+					} else {
+						printf(GREEN_TEXT("tcp/%-6u") RED_TEXT("%-10s"), real_port, port_status[res_info[scan_type].ports[port]]);
+					}
+					if ((service = getservbyport(htons(real_port), NULL))) {
+						printf(CYAN_TEXT("%-25s\n"), service->s_name);
+					} else {
+						printf(CYAN_TEXT("%-25s\n"), "Unassigned");
+					}
+				} 
+			}
+			bit = bit << 1;
+		}
+	}
+}
+
+void		nmap_loop(void)
 {
 	int		ret;
 	size_t		i;
 	struct timeval	initial_time;
 	struct timeval	now;
-	
-	get_options(argc, argv);
+
 	gettimeofday(&initial_time, NULL);
-	env.pid = getpid();
 	env.socket = create_socket(env.flag.ip);
 	env.timeout = 2;
-	init_sigaction();
 	init_pcap(&env.pcap, 0);
-//	init_pcap(&env.pcap_local, 1);
+	init_pcap(&env.pcap_local, 1);
 	env.my_ip = get_my_ip(env.pcap.device);
 	init_response_data_struct();
 	uint8_t	current_try;
@@ -564,20 +571,37 @@ int		main(int argc, char **argv)
 				while (++i < env.flag.thread)
 					pthread_join(env.threads[i].id, NULL);
 				listen_packets(&env.pcap);
-//				listen_packets(&env.pcap_local);
+				listen_packets(&env.pcap_local);
 			}
-/*
-			if (pcap_loop(env.pcap.session, 0, got_packet, NULL)) {
-			//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
-			ft_putendl("pcap_loop has been broken");
-			}
-*/
 		}
 		bit = bit << 1;
 	}
+	freeaddrinfo(env.addr);
+	close(env.socket);
 	pcap_close(env.pcap.session);
-//	pcap_close(env.pcap_local.session);
 	gettimeofday(&now, NULL);
-	printf("Scan took : %.5f nsecs\n", (double)handle_timer(&now, &initial_time) / 1000000);
+	printf("Scan on %s took : %.5f nsecs\n", env.flag.ip, (double)handle_timer(&now, &initial_time) / 1000000);
+	display_result();
+	pcap_close(env.pcap_local.session);
+
+}
+
+int		main(int argc, char **argv)
+{
+	get_options(argc, argv);
+	env.pid = getpid();
+	init_sigaction();
+
+	if (env.flag.ip)
+		nmap_loop();
+	else {
+		uint64_t i = -1;
+		while (env.flag.file[++i]) {
+			env.flag.ip = env.flag.file[i];
+			nmap_loop();
+			free(env.flag.file[i]);
+		}
+		free(env.flag.file);
+	}
 	return (EXIT_SUCCESS);
 }

@@ -37,10 +37,11 @@ static void	get_ip_in_file(char *str, void *ptr)
 	file = __ASSERTI(-1, open(str, O_RDONLY), "open");	
 	while ((ret = get_next_line(file, &line)))
 	{
-		if (ret == -1)
+		if (ret == -1) 
 			break;
 		list_push(&list, &line, sizeof(char*));
 	}
+	free(line);
 	ips_found = list_size(list);
 	ips = ft_memalloc((ips_found + 1) * sizeof(char *));
 
@@ -276,7 +277,6 @@ void	get_options(int argc, char **argv)
 	if (env.flag.scantype != _ALL) {
 		env.flag.scantype = ~(env.flag.scantype & _ALL);
 	}
-	env.flag.port_range.diff = env.flag.port_range.max - env.flag.port_range.min;
 	print_scan_configuration();
 	env.flag.scantype = (env.flag.scantype & _ALL);
 	//	list_remove(&parameters, remove_content);
