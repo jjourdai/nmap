@@ -42,6 +42,7 @@ SRC_NAME = tab_is_sort.c \
 		   list_atoi_split.c \
 		   list_size.c list_pop.c \
 		   btree_create_node.c btree_search_item.c checksum.c \
+		   ft_str_is_only_digit.c
 
 OBJ_PATH = .obj/
 

@@ -48,7 +48,8 @@
 				"--file, -f File name containing IP addresses to scan,\n"\
 				"--speedup, -t [250 max] number of parallel threads to use\n"\
 				"--scan, -s  SYN/NULL/FIN/XMAS/ACK/UDP\n"\
-				"--verbose, -v display result\n"\
+				"--verbose, -v Display result\n"\
+				"--source_port, -e Choose source port\n"\
 
 # define TRUE 1
 # define FALSE 0
@@ -81,6 +82,7 @@ enum	options {
 	F_VERBOSE = (1 << 4),
 	F_IP = (1 << 5),
 	F_FILE = (1 << 6),
+	F_SRC_PORT = (1 << 6),
 };
 
 enum	thread {
@@ -112,6 +114,8 @@ enum	error {
 	RANGE_MAX_EXCEEDED,
 	IP_AND_FILE_GIVEN,
 	NOT_IP_FOUND,
+	NOT_ONLY_DIGIT,
+	PORT_NOT_EXIST,
 };
 
 enum	e_port_state
@@ -186,6 +190,7 @@ struct nmap {
 		uint8_t			scantype;
 		char			*ip;
 		char			**file;
+		uint16_t		port_src;
 		t_port_range	port_range;
 	} flag;
 	t_thread_task	threads[THREAD_MAX];

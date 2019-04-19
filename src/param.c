@@ -56,6 +56,18 @@ static void	get_ip_in_file(char *str, void *ptr)
 	*((char***)ptr) = ips;
 }
 
+static void	get_source_port(char *str, void *ptr)
+{
+	uint32_t port = ft_atoi_u(str);
+	
+	if (ft_str_is_only_digit(str) == 0) {
+		__FATAL(NOT_ONLY_DIGIT, BINARY_NAME, str);
+	} else if (port > 0xFFFF) {
+		__FATAL(PORT_NOT_EXIST, BINARY_NAME, str);
+	}
+	*((uint16_t*)ptr) = port;
+}
+
 static void	get_string(char *str, void *ptr)
 {
 	*((char **)ptr) = str;
@@ -135,6 +147,7 @@ static struct params_getter options[] = {
 	{"ip", 'i', F_IP, get_string, &env.flag.ip, DUP_OFF},
 	{"file", 'f', F_FILE, get_ip_in_file, &env.flag.file, DUP_OFF},
 	{"verbose", 'v', F_VERBOSE, NULL, NULL, DUP_OFF},
+	{"source_port", 'e', F_SRC_PORT, get_source_port, &env.flag.port_src, DUP_OFF},
 };
 
 void	longname_opt(char **argv, uint32_t *flag, int *i)

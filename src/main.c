@@ -424,7 +424,7 @@ void		init_pcap(struct pcap_info *pcap, int def)
 	char 				filter_exp[256];	/* The filter expression */
 
 	env.current = pcap;
-	sprintf(filter_exp, "src host %s and (dst port %u or icmp)", env.flag.ip, SOURCE_PORT);
+	sprintf(filter_exp, "src host %s and (dst port %u or icmp)", env.flag.ip, env.flag.port_src);
 	/* Open the default device */
 	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR)
 	{

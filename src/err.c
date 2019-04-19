@@ -15,6 +15,8 @@ char	*error_str[] = {
 	[RANGE_MAX_EXCEEDED] = RED_TEXT("%s: '%d' Port range must be >= at '%d'\n"),
 	[IP_AND_FILE_GIVEN] = RED_TEXT("%s: ip and file has been given...\n"),
 	[NOT_IP_FOUND] = RED_TEXT("%s: getifaddr don't found our ip...\n"),
+	[NOT_ONLY_DIGIT] = RED_TEXT("%s: source_port must be only digit -- %s\n"),
+	[PORT_NOT_EXIST] = RED_TEXT("%s: source_port must be contains between 0 >= 65535 -- %s\n"),
 };
 
 void	handle_error(uint32_t line, char *file, t_bool fatal, enum error code, ...)

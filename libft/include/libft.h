@@ -154,5 +154,6 @@ char				*ft_strcut(char *str, char c);
 int					get_next_line(const int fd, char **line);
 t_bool				ft_list_is_sort(t_list *p_a, t_bool order);
 uint16_t			compute_checksum(void *data, size_t size);
+t_bool				ft_str_is_only_digit(char *str);
 
 #endif
