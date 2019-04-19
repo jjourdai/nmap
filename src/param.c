@@ -293,5 +293,6 @@ void	get_options(int argc, char **argv)
 	}
 	print_scan_configuration();
 	env.flag.scantype = (env.flag.scantype & _ALL);
+	env.flag.port_src = (env.flag.port_src == 0) ? SOURCE_PORT : env.flag.port_src;
 	//	list_remove(&parameters, remove_content);
 }

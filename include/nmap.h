@@ -62,7 +62,7 @@
 # define DUP_OFF 0
 # define RANGE_MAX 1024
 # define SOURCE_PORT 48752
-# define RETRY_MAX 3
+# define RETRY_MAX 1
 # define DEBUG 1
 
 # define __FATAL(X, ...) handle_error(__LINE__, __FILE__, FATAL, X, __VA_ARGS__)
@@ -116,6 +116,7 @@ enum	error {
 	NOT_IP_FOUND,
 	NOT_ONLY_DIGIT,
 	PORT_NOT_EXIST,
+	UNKNOWN_HOST,
 };
 
 enum	e_port_state

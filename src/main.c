@@ -247,7 +247,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 {
 	struct packets *sniff;
 	sniff = (struct packets*)packet;
-
 	uint16_t protocol = sniff->buf.ip.protocol;
 	#if DEBUG == 1
 	struct in_addr src;
@@ -280,7 +279,8 @@ struct addrinfo *result_dns(char *domain)
 	hints.ai_family = AF_INET;
 	hints.ai_flags = AI_CANONNAME;
 	if (getaddrinfo(domain, NULL, &hints, &result) != 0) {
-		fprintf(stderr, "ping: unknown host %s\n", domain); exit(EXIT_FAILURE);
+		__FATAL(UNKNOWN_HOST, BINARY_NAME, domain);
+		return (NULL);
 	} else {
 		return (result);
 	}
@@ -374,13 +374,17 @@ void	send_packet(uint8_t scan_type, uint16_t port)
 void	run_thread(t_thread_task *task)
 {
 	uint16_t	port;
+	uint8_t		current_try;
 
-	port = task->port_range.min - 1;
-	while (port < task->port_range.max)
-	{
-		if (response[env.current_scan][port - env.flag.port_range.min + 1] == TIMEOUT)
-			send_packet(task->scan_type, port + 1);
-		++port;
+	current_try = 0;
+	for (; current_try < RETRY_MAX; current_try++) {
+		port = task->port_range.min - 1;
+		while (port < task->port_range.max)
+		{
+			if (response[env.current_scan][port - env.flag.port_range.min + 1] == TIMEOUT)
+				send_packet(task->scan_type, port + 1);
+			++port;
+		}
 	}
 }
 
@@ -492,6 +496,7 @@ enum e_port_state 	display_tcp(uint8_t scantype, uint16_t value)
 
 enum e_port_state 	display_udp(uint8_t scantype, uint16_t value) 
 {
+	(void)value;
 	if (env.flag.value & F_VERBOSE) {
 		printf(FORMAT"udp response", 32, 15, TREE, scan_type_string[scantype], port_status[PORT_OPEN]);
 	}
@@ -517,7 +522,7 @@ enum e_port_state	(*display_by_type[])(uint8_t scantype, uint16_t value) = {
 void		display_verbosity_result(void)
 {
 	uint16_t port, range = env.flag.port_range.max - env.flag.port_range.min, real_port;
-	uint8_t bit, scan_type, multi_scan;
+	uint8_t bit, scan_type;
 	struct  servent *service;
 
 	printf(GREEN_TEXT("%-8s") CYAN_TEXT("%-25s") RED_TEXT("%-29s") RED_TEXT("%-15s") RED_TEXT("%s\n"),  "Ports", "Service Name","Scan type", "Results", "Reason"); 
@@ -559,20 +564,18 @@ void		display_short_result(void)
 		bit = 1;
 		while (bit <= 32) {
 			scan_type = env.flag.scantype & bit;
-			if (scan_type != 0) {
-				if (display_by_type[response[scan_type][port] >> 16] && (status =\
-							display_by_type[response[scan_type][port] >> 16](scan_type,\
-								(uint16_t)response[scan_type][port])) == PORT_OPEN ) {
-					if (scan_type == _UDP) {
-						printf(GREEN_TEXT("udp/%-6u")  RED_TEXT("%-10s"), real_port, port_status[status]);
-					} else {
-						printf(GREEN_TEXT("tcp/%-6u") RED_TEXT("%-10s"), real_port, port_status[status]);
-					}
-					if ((service = getservbyport(htons(real_port), NULL))) {
-						printf(CYAN_TEXT("%-25s\n"), service->s_name);
-					} else {
-						printf(CYAN_TEXT("%-25s\n"), "Unassigned");
-					}
+			if (scan_type != 0 && display_by_type[response[scan_type][port] >> 16] && (status =\
+						display_by_type[response[scan_type][port] >> 16](scan_type,\
+							(uint16_t)response[scan_type][port])) == PORT_OPEN ) {
+				if (scan_type == _UDP) {
+					printf(GREEN_TEXT("udp/%-6u")  RED_TEXT("%-10s"), real_port, port_status[status]);
+				} else {
+					printf(GREEN_TEXT("tcp/%-6u") RED_TEXT("%-10s"), real_port, port_status[status]);
+				}
+				if ((service = getservbyport(htons(real_port), NULL))) {
+					printf(CYAN_TEXT("%-25s\n"), service->s_name);
+				} else {
+					printf(CYAN_TEXT("%-25s\n"), "Unassigned");
 				}
 			}
 			bit = bit << 1;
@@ -593,32 +596,27 @@ void		nmap_loop(void)
 	init_pcap(&env.pcap, 0);
 	init_pcap(&env.pcap_local, 1);
 	env.my_ip = get_my_ip(env.pcap.device);
-	uint8_t	current_try;
 	uint8_t bit = 1;
 	printf("Permform scan on %s\n", env.flag.ip);
 	while (bit <= 32) {
 		env.current_scan = env.flag.scantype & bit;
 		if (env.current_scan != 0) {
-			current_try = 0;
-			for (; current_try < RETRY_MAX; current_try++) {
-				printf(RED_TEXT("Perform Scan %s try %u\n"), scan_type_string[env.current_scan], current_try);
-				i = (size_t)-1;
-				while (++i < env.flag.thread)
+			i = (size_t)-1;
+			while (++i < env.flag.thread)
+			{
+				env.threads[i].scan_type = env.current_scan;
+				env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
+				env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
+				env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
+				if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i])))
 				{
-					env.threads[i].scan_type = env.current_scan;
-					env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
-					env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
-					env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
-					if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i])))
-					{
-					}
 				}
-				i = (size_t)-1;
-				while (++i < env.flag.thread)
-					pthread_join(env.threads[i].id, NULL);
-				listen_packets(&env.pcap);
-				listen_packets(&env.pcap_local);
 			}
+			i = (size_t)-1;
+			while (++i < env.flag.thread)
+				pthread_join(env.threads[i].id, NULL);
+			listen_packets(&env.pcap);
+			listen_packets(&env.pcap_local);
 		}
 		bit = bit << 1;
 	}
