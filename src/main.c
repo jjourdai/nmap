@@ -318,39 +318,34 @@ int create_socket(void *domain)
 	return (soc);
 }
 
-void	send_udp_packet(uint8_t scan_type, uint16_t port, struct buffer buf)
+void	send_udp_packet(uint8_t scan_type, uint16_t port, struct buffer *buf)
 {
 	struct package test;
 
-	init_udphdr(&buf.un.udp, port);
+	init_udphdr(&buf->un.udp, port);
 	ft_bzero(&test, sizeof(test));
-	test.psd.ip_source = buf.ip.saddr;
-	test.psd.ip_dest = buf.ip.daddr;
+	test.psd.ip_source = buf->ip.saddr;
+	test.psd.ip_dest = buf->ip.daddr;
 	test.psd.mbz = 0;
-	test.psd.type = info_scan[scan_type].proto; //IPPROTO_TCP || IPPROTO_UDP
+	test.psd.type = info_scan[scan_type].proto;
 	test.psd.length = htons(sizeof(struct buffer) - sizeof(struct iphdr));
-	ft_memcpy(&test.un.udp, &buf.un.udp, sizeof(struct buffer) - sizeof(struct iphdr));
-	buf.un.udp.check = compute_checksum(&test, sizeof(struct buffer) - sizeof(struct iphdr));
-	socklen_t addrlen = sizeof(struct sockaddr);
-	__ASSERTI(-1, sendto(env.socket, &buf, sizeof(buf), 0, (const struct sockaddr*)env.addr->ai_addr, addrlen), "sendto");
+	ft_memcpy(&test.un.udp, &buf->un.udp, sizeof(struct buffer) - sizeof(struct iphdr));
+	buf->un.udp.check = compute_checksum(&test, sizeof(struct buffer) - sizeof(struct iphdr));
 }
 
-void	send_tcp_packet(uint8_t scan_type, uint16_t port, struct buffer buf)
+void	send_tcp_packet(uint8_t scan_type, uint16_t port, struct buffer *buf)
 {
 	struct package test;
 
-	init_tcphdr(&buf.un.tcp, port, info_scan[scan_type].flag);
-
+	init_tcphdr(&buf->un.tcp, port, info_scan[scan_type].flag);
 	ft_bzero(&test, sizeof(test));
-	test.psd.ip_source = buf.ip.saddr;
-	test.psd.ip_dest = buf.ip.daddr;
+	test.psd.ip_source = buf->ip.saddr;
+	test.psd.ip_dest = buf->ip.daddr;
 	test.psd.mbz = 0;
-	test.psd.type = info_scan[scan_type].proto; //IPPROTO_TCP || IPPROTO_UDP
+	test.psd.type = info_scan[scan_type].proto;
 	test.psd.length = htons(sizeof(struct buffer) - sizeof(struct iphdr));
-	ft_memcpy(&test.un.tcp, &buf.un.tcp, sizeof(struct buffer) - sizeof(struct iphdr));
-	buf.un.tcp.check = compute_checksum(&test, sizeof(struct buffer) - sizeof(struct iphdr));
-	socklen_t addrlen = sizeof(struct sockaddr);
-	__ASSERTI(-1, sendto(env.socket, &buf, sizeof(buf), 0, (const struct sockaddr*)env.addr->ai_addr, addrlen), "sendto");
+	ft_memcpy(&test.un.tcp, &buf->un.tcp, sizeof(struct buffer) - sizeof(struct iphdr));
+	buf->un.tcp.check = compute_checksum(&test, sizeof(struct buffer) - sizeof(struct iphdr));
 }
 
 void	send_packet(uint8_t scan_type, uint16_t port)
@@ -360,10 +355,20 @@ void	send_packet(uint8_t scan_type, uint16_t port)
 	init_iphdr(&buf.ip, ((struct sockaddr_in*)env.addr->ai_addr)->sin_addr.s_addr, info_scan[scan_type].proto);
 	buf.ip.saddr = env.my_ip;
 	if (info_scan[scan_type].proto == IPPROTO_TCP) {
-		send_tcp_packet(scan_type, port, buf);
+		send_tcp_packet(scan_type, port, &buf);
 	} else if (info_scan[scan_type].proto == IPPROTO_UDP) {
-		send_udp_packet(scan_type, port, buf);
+		send_udp_packet(scan_type, port, &buf);
 	}
+	socklen_t addrlen = sizeof(struct sockaddr);
+	
+	struct pollfd poll_list;
+	int retval;
+	poll_list.fd = env.socket;
+	poll_list.events = POLLOUT;
+
+	retval = __ASSERTI(-1, poll(&poll_list, 1, 0), "poll");
+	if (retval > 0)
+		__ASSERTI(-1, sendto(env.socket, &buf, sizeof(buf), 0, (const struct sockaddr*)env.addr->ai_addr, addrlen), "sendto");
 }
 
 void	run_thread(t_thread_task *task)
@@ -627,7 +632,6 @@ void		nmap_loop(void)
 	else
 		display_short_result();
 	pcap_close(env.pcap_local.session);
-
 }
 
 int		main(int argc, char **argv)
