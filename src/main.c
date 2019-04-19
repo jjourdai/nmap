@@ -9,12 +9,7 @@ void	is_root(void)
 	exit(EXIT_FAILURE);
 }
 
-struct response_data res_info[_UDP + 1] = {0};
-
-void	init_response_data_struct(void)
-{
-	ft_bzero(&res_info, sizeof(res_info));
-}
+uint32_t	response[_UDP + 1][RANGE_MAX] = {0};
 
 uint64_t	handle_timer(const struct timeval *now, const struct timeval *past)
 {
@@ -23,7 +18,7 @@ uint64_t	handle_timer(const struct timeval *now, const struct timeval *past)
 	return time - time2;
 }
 
-static char *scan_type_string[] = {
+const char *scan_type_string[] = {
 	[_SYN] = "SYN",
 	[_ACK] = "ACK",
 	[_NULL] = "NULL",
@@ -32,8 +27,7 @@ static char *scan_type_string[] = {
 	[_UDP] = "UDP",
 };
 
-/*
-static char *timeout_result[] = {
+const char *timeout_result[] = {
 	[_SYN] = "Filtered",
 	[_ACK] = "Filtered",
 	[_NULL] = "Open|Filtered",
@@ -41,20 +35,80 @@ static char *timeout_result[] = {
 	[_XMAS] = "Open|Filtered",
 	[_UDP] = "Open|Filtered",
 };
-*/
 
-/*
-static char *tcp_flag_string[] = {
-	[TH_FIN] = "FIN",
-	[TH_SYN] = "SYN",
-	[TH_RST] = "RST",
-	[TH_PUSH] = "PUSH",
-	[TH_ACK] = "ACK",
-	[TH_URG] = "URG",
+const uint8_t icmp_res[][128][128] = {
+	[_SYN] = {
+		[ICMP_DEST_UNREACH] = {
+			[ICMP_HOST_UNREACH] = PORT_FILTERED,
+			[ICMP_PROT_UNREACH] = PORT_FILTERED,
+			[ICMP_PORT_UNREACH] = PORT_FILTERED,
+			[ICMP_NET_ANO] = PORT_FILTERED,
+			[ICMP_HOST_ANO] = PORT_FILTERED,
+			[ICMP_PKT_FILTERED] = PORT_FILTERED,
+		},
+	},
+	[_NULL] = {
+		[ICMP_DEST_UNREACH] = {
+			[ICMP_HOST_UNREACH] = PORT_FILTERED,
+			[ICMP_PROT_UNREACH] = PORT_FILTERED,
+			[ICMP_PORT_UNREACH] = PORT_FILTERED,
+			[ICMP_NET_ANO] = PORT_FILTERED,
+			[ICMP_HOST_ANO] = PORT_FILTERED,
+			[ICMP_PKT_FILTERED] = PORT_FILTERED,
+		},
+	},
+	[_FIN] = {
+		[ICMP_DEST_UNREACH] = {
+			[ICMP_HOST_UNREACH] = PORT_FILTERED,
+			[ICMP_PROT_UNREACH] = PORT_FILTERED,
+			[ICMP_PORT_UNREACH] = PORT_FILTERED,
+			[ICMP_NET_ANO] = PORT_FILTERED,
+			[ICMP_HOST_ANO] = PORT_FILTERED,
+			[ICMP_PKT_FILTERED] = PORT_FILTERED,
+		},
+	},
+	[_XMAS] = {
+		[ICMP_DEST_UNREACH] = {
+			[ICMP_HOST_UNREACH] = PORT_FILTERED,
+			[ICMP_PROT_UNREACH] = PORT_FILTERED,
+			[ICMP_PORT_UNREACH] = PORT_FILTERED,
+			[ICMP_NET_ANO] = PORT_FILTERED,
+			[ICMP_HOST_ANO] = PORT_FILTERED,
+			[ICMP_PKT_FILTERED] = PORT_FILTERED,
+		},
+	},
+	[_ACK] = {
+		[ICMP_DEST_UNREACH] = {
+			[ICMP_HOST_UNREACH] = PORT_FILTERED,
+			[ICMP_PROT_UNREACH] = PORT_FILTERED,
+			[ICMP_PORT_UNREACH] = PORT_FILTERED,
+			[ICMP_NET_ANO] = PORT_FILTERED,
+			[ICMP_HOST_ANO] = PORT_FILTERED,
+			[ICMP_PKT_FILTERED] = PORT_FILTERED,
+		},
+	},
+	[_UDP] = {
+		[ICMP_DEST_UNREACH] = {
+			[ICMP_HOST_UNREACH] = PORT_FILTERED,
+			[ICMP_PROT_UNREACH] = PORT_FILTERED,
+			[ICMP_NET_ANO] = PORT_FILTERED,
+			[ICMP_HOST_ANO] = PORT_FILTERED,
+			[ICMP_PKT_FILTERED] = PORT_FILTERED,
+			[ICMP_PORT_UNREACH] = PORT_CLOSED,
+		},
+	},
 };
-*/
-/*
-static char *icmp_type_string[] = {
+
+const char *tcp_flag_string[] = {
+	[TH_FIN] = "fin",
+	[TH_SYN] = "syn",
+	[TH_RST] = "rst",
+	[TH_PUSH] = "push",
+	[TH_ACK] = "ack",
+	[TH_URG] = "urg",
+};
+
+const char *icmp_type_string[] = {
 	[ICMP_ECHOREPLY] = "ICMP_ECHOREPLY",	     
 	[ICMP_DEST_UNREACH] = "ICMP_DEST_UNREACH",   
 	[ICMP_SOURCE_QUENCH] = "ICMP_SOURCE_QUENCH", 
@@ -69,7 +123,15 @@ static char *icmp_type_string[] = {
 	[ICMP_ADDRESS] = "ICMP_ADDRESS",	     
 	[ICMP_ADDRESSREPLY] = "ICMP_ADDRESSREPLY",   
 };
-*/
+
+const char *icmp_code_string[] = {
+	[ICMP_HOST_UNREACH] = "Host unreach",
+	[ICMP_PROT_UNREACH] = "Prot unreach",
+	[ICMP_PORT_UNREACH] = "Port unreach",
+	[ICMP_NET_ANO] = "Net ano",	  
+	[ICMP_HOST_ANO] = "Host ano",	  
+	[ICMP_PKT_FILTERED] = "Pkt filtered",
+}; 
 
 const struct scan_type_info info_scan[] = {
 	[_SYN] = {IPPROTO_TCP, TH_SYN, },
@@ -86,9 +148,7 @@ const char *port_status[] = {
 	[PORT_UNFILTERED] = "Unfiltered",
 };
 
-void	response_tcp(struct buffer *res) 
-{
-	static const uint8_t res_type[][128] = {
+const uint8_t tcp_res[][128] = {
 		[_SYN] = {
 			[TH_SYN | TH_ACK] = PORT_OPEN,
 			[TH_RST] = PORT_CLOSED,
@@ -109,13 +169,17 @@ void	response_tcp(struct buffer *res)
 		[_ACK] = {
 			[TH_RST] = PORT_UNFILTERED,
 		},
-	};
-	res_info[env.current_scan].ports[ntohs(res->un.tcp.th_sport) - env.flag.port_range.min] = res_type[env.current_scan][res->un.tcp.th_flags];
+};
+
+void	response_tcp(struct buffer *res) 
+{
+
+	response[env.current_scan][ntohs(res->un.tcp.th_sport) - env.flag.port_range.min] = IPPROTO_TCP << 16 | res->un.tcp.th_flags;
 	#if DEBUG == 1
 	struct  servent *service;
 	
 	printf("%u/tcp return ", ntohs(res->un.tcp.th_sport));
-	printf("%s ", port_status[res_type[env.current_scan][res->un.tcp.th_flags]]);
+	printf("%s ", port_status[tcp_res[env.current_scan][res->un.tcp.th_flags]]);
 	if ((service = getservbyport(res->un.tcp.th_sport, NULL))) {
 		printf("service %s\n", service->s_name);
 	} else {
@@ -126,74 +190,11 @@ void	response_tcp(struct buffer *res)
 
 void	response_icmp(struct buffer *res) 
 {
-	static const uint8_t res_type[][128][128] = {
-		[_SYN] = {
-			[ICMP_DEST_UNREACH] = {
-				[ICMP_HOST_UNREACH] = PORT_FILTERED,
-				[ICMP_PROT_UNREACH] = PORT_FILTERED,
-				[ICMP_PORT_UNREACH] = PORT_FILTERED,
-				[ICMP_NET_ANO] = PORT_FILTERED,
-				[ICMP_HOST_ANO] = PORT_FILTERED,
-				[ICMP_PKT_FILTERED] = PORT_FILTERED,
-			},
-		},
-		[_NULL] = {
-			[ICMP_DEST_UNREACH] = {
-				[ICMP_HOST_UNREACH] = PORT_FILTERED,
-				[ICMP_PROT_UNREACH] = PORT_FILTERED,
-				[ICMP_PORT_UNREACH] = PORT_FILTERED,
-				[ICMP_NET_ANO] = PORT_FILTERED,
-				[ICMP_HOST_ANO] = PORT_FILTERED,
-				[ICMP_PKT_FILTERED] = PORT_FILTERED,
-			},
-		},
-		[_FIN] = {
-			[ICMP_DEST_UNREACH] = {
-				[ICMP_HOST_UNREACH] = PORT_FILTERED,
-				[ICMP_PROT_UNREACH] = PORT_FILTERED,
-				[ICMP_PORT_UNREACH] = PORT_FILTERED,
-				[ICMP_NET_ANO] = PORT_FILTERED,
-				[ICMP_HOST_ANO] = PORT_FILTERED,
-				[ICMP_PKT_FILTERED] = PORT_FILTERED,
-			},
-		},
-		[_XMAS] = {
-			[ICMP_DEST_UNREACH] = {
-				[ICMP_HOST_UNREACH] = PORT_FILTERED,
-				[ICMP_PROT_UNREACH] = PORT_FILTERED,
-				[ICMP_PORT_UNREACH] = PORT_FILTERED,
-				[ICMP_NET_ANO] = PORT_FILTERED,
-				[ICMP_HOST_ANO] = PORT_FILTERED,
-				[ICMP_PKT_FILTERED] = PORT_FILTERED,
-			},
-		},
-		[_ACK] = {
-			[ICMP_DEST_UNREACH] = {
-				[ICMP_HOST_UNREACH] = PORT_FILTERED,
-				[ICMP_PROT_UNREACH] = PORT_FILTERED,
-				[ICMP_PORT_UNREACH] = PORT_FILTERED,
-				[ICMP_NET_ANO] = PORT_FILTERED,
-				[ICMP_HOST_ANO] = PORT_FILTERED,
-				[ICMP_PKT_FILTERED] = PORT_FILTERED,
-			},
-		},
-		[_UDP] = {
-			[ICMP_DEST_UNREACH] = {
-				[ICMP_HOST_UNREACH] = PORT_FILTERED,
-				[ICMP_PROT_UNREACH] = PORT_FILTERED,
-				[ICMP_NET_ANO] = PORT_FILTERED,
-				[ICMP_HOST_ANO] = PORT_FILTERED,
-				[ICMP_PKT_FILTERED] = PORT_FILTERED,
-				[ICMP_PORT_UNREACH] = PORT_CLOSED,
-			},
-		},
-	};
-
 	struct buffer *ptr = (void*)&res->un.icmp + sizeof(struct icmphdr);
 	if (ptr->ip.protocol == IPPROTO_TCP) {
 		#if DEBUG == 1
 		printf("%u/icmp return ", ntohs(ptr->un.tcp.th_dport));
-		printf("%s ", port_status[res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
+		printf("%s ", port_status[icmp_res[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
 		struct  servent *service;
 		if ((service = getservbyport(res->un.tcp.th_dport, NULL))) {
 			printf("service %s \n", service->s_name);
@@ -201,11 +202,11 @@ void	response_icmp(struct buffer *res)
 			printf("service unknown \n");
 		}
 		#endif
-		res_info[env.current_scan].ports[ntohs(ptr->un.tcp.th_dport) - env.flag.port_range.min] = res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code];
+		response[env.current_scan][ntohs(ptr->un.tcp.th_dport) - env.flag.port_range.min] = (IPPROTO_ICMP << 16) | (res->un.icmp.type << 8) | (res->un.icmp.code);
 	} else if (ptr->ip.protocol == IPPROTO_UDP) {
 		#if DEBUG == 1
 		printf("%u/icmp return ", ntohs(ptr->un.udp.uh_dport));
-		printf("%s ", port_status[res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
+		printf("%s ", port_status[icmp_res[env.current_scan][res->un.icmp.type][res->un.icmp.code]]);
 		struct  servent *service;
 		if ((service = getservbyport(res->un.udp.uh_dport, NULL))) {
 			printf("service %s \n", service->s_name);
@@ -213,7 +214,7 @@ void	response_icmp(struct buffer *res)
 			printf("service unknown \n");
 		}
 		#endif
-		res_info[env.current_scan].ports[ntohs(ptr->un.udp.uh_dport) - env.flag.port_range.min] = res_type[env.current_scan][res->un.icmp.type][res->un.icmp.code];
+		response[env.current_scan][ntohs(ptr->un.udp.uh_dport) - env.flag.port_range.min] = (IPPROTO_ICMP << 16) | (res->un.icmp.type << 8) | (res->un.icmp.code);
 	} else {
 		#if DEBUG == 1
 		printf("Unknown protocol %s %u\n", __FILE__, __LINE__);
@@ -223,7 +224,7 @@ void	response_icmp(struct buffer *res)
 
 void	response_udp(struct buffer *res) 
 {
-	res_info[env.current_scan].ports[ntohs(res->un.udp.uh_sport) - env.flag.port_range.min] = PORT_OPEN;
+	response[env.current_scan][ntohs(res->un.udp.uh_sport) - env.flag.port_range.min] = (IPPROTO_UDP << 16);
 	#if DEBUG == 1
 	printf("%u/udp return ", ntohs(res->un.udp.uh_sport));
 	printf("%s ", port_status[PORT_OPEN]);
@@ -372,7 +373,7 @@ void	run_thread(t_thread_task *task)
 	port = task->port_range.min - 1;
 	while (port < task->port_range.max)
 	{
-		if (res_info[env.current_scan].ports[port - env.flag.port_range.min + 1] == TIMEOUT)
+		if (response[env.current_scan][port - env.flag.port_range.min + 1] == TIMEOUT)
 			send_packet(task->scan_type, port + 1);
 		++port;
 	}
@@ -423,7 +424,6 @@ void		init_pcap(struct pcap_info *pcap, int def)
 	char 				filter_exp[256];	/* The filter expression */
 
 	env.current = pcap;
-//	sprintf(filter_exp, "src host %s and (src portrange %hu-%hu or icmp)", env.flag.ip, env.flag.port_range.min, env.flag.port_range.max);
 	sprintf(filter_exp, "src host %s and (dst port %u or icmp)", env.flag.ip, SOURCE_PORT);
 	/* Open the default device */
 	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR)
@@ -462,21 +462,61 @@ void		init_sigaction(void)
 	struct sigaction sig = {
 		.sa_handler = signal_handler,
 	};
-	//ne pas oublier de closed les SIGALARM
 	sigaction(SIGALRM, &sig, NULL);
 }
 
-/*
-void		display_result(void)
+#define TREE "|-----------------------------------------"
+#define FORMAT "\n%*.*s %-28s %-15s"
+enum e_port_state 	display_tcp(uint8_t scantype, uint16_t value) 
+{
+	uint8_t status_port = tcp_res[scantype][value];
+	uint8_t	flag;
+
+	if (env.flag.value & F_VERBOSE) {
+		printf(FORMAT, 32, 15, TREE, scan_type_string[scantype], port_status[status_port]);
+		flag = 0x01;
+		while (flag <= TH_URG) {
+			if (flag & value) {
+				printf("%s ", tcp_flag_string[flag]);
+			}
+			flag = flag << 1;
+		}
+	}
+	return (status_port);
+}
+
+enum e_port_state 	display_udp(uint8_t scantype, uint16_t value) 
+{
+	if (env.flag.value & F_VERBOSE) {
+		printf(FORMAT"udp response", 32, 15, TREE, scan_type_string[scantype], port_status[PORT_OPEN]);
+	}
+	return (PORT_OPEN);
+}
+
+enum e_port_state 	display_icmp(uint8_t scantype, uint16_t value) 
+{
+	uint8_t status_port = icmp_res[scantype][value >> 8][value & 0xff];
+
+	if (env.flag.value & F_VERBOSE) {
+		printf(FORMAT"%s", 32, 15, TREE, scan_type_string[scantype], port_status[status_port], icmp_code_string[value & 0xff]);
+	}
+	return (status_port);
+}
+	
+enum e_port_state	(*display_by_type[])(uint8_t scantype, uint16_t value) = {
+	[IPPROTO_TCP] = display_tcp,
+	[IPPROTO_UDP] = display_udp,
+	[IPPROTO_ICMP] = display_icmp,
+};
+
+void		display_verbosity_result(void)
 {
 	uint16_t port, range = env.flag.port_range.max - env.flag.port_range.min, real_port;
-	uint8_t bit, scan_type;
-	char	buffer[2048];
-	size_t	len_buffer;
+	uint8_t bit, scan_type, multi_scan;
 	struct  servent *service;
 
-	printf(GREEN_TEXT("%-8s") CYAN_TEXT("%-20s") RED_TEXT("%-28s\n"), "Ports", "Service Name", "Results"); 
-	printf("----------------------------------------------------------------------------\n");
+	printf(GREEN_TEXT("%-8s") CYAN_TEXT("%-25s") RED_TEXT("%-29s") RED_TEXT("%-15s") RED_TEXT("%s\n"),  "Ports", "Service Name","Scan type", "Results", "Reason"); 
+	printf("------------------------------------------------------------------------------------------\n");
 	for (port = 0; port < range + 1; port++) {
 		real_port = port + env.flag.port_range.min;
 		bit = 1;
@@ -485,28 +525,27 @@ void		display_result(void)
 		} else {
 			printf(GREEN_TEXT("%-10u ") CYAN_TEXT("%-15s "), real_port, "Unassigned");
 		}
-		len_buffer = 0;
 		while (bit <= 32) {
 			scan_type = env.flag.scantype & bit;
 			if (scan_type != 0) {
-				if (res_info[scan_type].ports[port] != TIMEOUT) {
-					len_buffer += sprintf(buffer + len_buffer, "%s(%s) ", scan_type_string[scan_type], port_status[res_info[scan_type].ports[port]]);
-				} else {
-					len_buffer += sprintf(buffer + len_buffer, "%s(%s) ", scan_type_string[scan_type], timeout_result[scan_type]);
+				if (response[scan_type][port] >> 16 == 0) {
+					printf(FORMAT"%s", 32, 15, TREE, scan_type_string[scan_type], timeout_result[scan_type], "no-response ");
+				} else if (display_by_type[response[scan_type][port] >> 16]) {
+					display_by_type[response[scan_type][port] >> 16](scan_type, (uint16_t)response[scan_type][port]);
 				}
 			}
 			bit = bit << 1;
 		}
-		printf(RED_TEXT("%s\n"), buffer);
+		printf("\n");
 	}
 }
-*/
 
-void		display_result(void)
+void		display_short_result(void)
 {
 	uint16_t port, range = env.flag.port_range.max - env.flag.port_range.min, real_port;
 	uint8_t bit, scan_type;
 	struct  servent *service;
+	enum e_port_state status;
 
 	printf(GREEN_TEXT("%-10s") RED_TEXT("%-10s") CYAN_TEXT("%-25s\n"), "Ports", "Results", "Service Name"); 
 	printf("----------------------------------------------------------------------------\n");
@@ -516,18 +555,20 @@ void		display_result(void)
 		while (bit <= 32) {
 			scan_type = env.flag.scantype & bit;
 			if (scan_type != 0) {
-				if (res_info[scan_type].ports[port] == PORT_OPEN || res_info[scan_type].ports[port] == PORT_CLOSED) {
+				if (display_by_type[response[scan_type][port] >> 16] && (status =\
+							display_by_type[response[scan_type][port] >> 16](scan_type,\
+								(uint16_t)response[scan_type][port])) == PORT_OPEN ) {
 					if (scan_type == _UDP) {
-						printf(GREEN_TEXT("udp/%-6u")  RED_TEXT("%-10s"), real_port, port_status[res_info[scan_type].ports[port]]);
+						printf(GREEN_TEXT("udp/%-6u")  RED_TEXT("%-10s"), real_port, port_status[status]);
 					} else {
-						printf(GREEN_TEXT("tcp/%-6u") RED_TEXT("%-10s"), real_port, port_status[res_info[scan_type].ports[port]]);
+						printf(GREEN_TEXT("tcp/%-6u") RED_TEXT("%-10s"), real_port, port_status[status]);
 					}
 					if ((service = getservbyport(htons(real_port), NULL))) {
 						printf(CYAN_TEXT("%-25s\n"), service->s_name);
 					} else {
 						printf(CYAN_TEXT("%-25s\n"), "Unassigned");
 					}
-				} 
+				}
 			}
 			bit = bit << 1;
 		}
@@ -547,9 +588,9 @@ void		nmap_loop(void)
 	init_pcap(&env.pcap, 0);
 	init_pcap(&env.pcap_local, 1);
 	env.my_ip = get_my_ip(env.pcap.device);
-	init_response_data_struct();
 	uint8_t	current_try;
 	uint8_t bit = 1;
+	printf("Permform scan on %s\n", env.flag.ip);
 	while (bit <= 32) {
 		env.current_scan = env.flag.scantype & bit;
 		if (env.current_scan != 0) {
@@ -580,8 +621,11 @@ void		nmap_loop(void)
 	close(env.socket);
 	pcap_close(env.pcap.session);
 	gettimeofday(&now, NULL);
-	printf("Scan on %s took : %.5f nsecs\n", env.flag.ip, (double)handle_timer(&now, &initial_time) / 1000000);
-	display_result();
+	printf("Scan on %s took : %.5f secs\n", env.flag.ip, (double)handle_timer(&now, &initial_time) / 1000000);
+	if (env.flag.value & F_VERBOSE)
+		display_verbosity_result();
+	else
+		display_short_result();
 	pcap_close(env.pcap_local.session);
 
 }

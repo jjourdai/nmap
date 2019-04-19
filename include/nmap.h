@@ -48,6 +48,7 @@
 				"--file, -f File name containing IP addresses to scan,\n"\
 				"--speedup, -t [250 max] number of parallel threads to use\n"\
 				"--scan, -s  SYN/NULL/FIN/XMAS/ACK/UDP\n"\
+				"--verbose, -v display result\n"\
 
 # define TRUE 1
 # define FALSE 0
@@ -61,8 +62,8 @@
 # define RANGE_MAX 1024
 # define SOURCE_PORT 48752
 # define RETRY_MAX 3
+# define DEBUG 1
 
-# define DEBUG 0
 # define __FATAL(X, ...) handle_error(__LINE__, __FILE__, FATAL, X, __VA_ARGS__)
 # define __ASSERTI(ERR_VALUE, RETURN_VALUE, STRING) x_int(ERR_VALUE, RETURN_VALUE, STRING, __FILE__, __LINE__)
 # define __ASSERT(ERR_VALUE, RETURN_VALUE, STRING) x_void(ERR_VALUE, RETURN_VALUE, STRING, __FILE__, __LINE__)
@@ -77,8 +78,9 @@ enum	options {
 	F_PORT = (1 << 1),
 	F_SPEED = (1 << 2),
 	F_SCANTYPE = (1 << 3),
-	F_FILE = 0x30,
-	F_IP = 0x10,
+	F_VERBOSE = (1 << 4),
+	F_IP = (1 << 5),
+	F_FILE = (1 << 6),
 };
 
 enum	thread {
@@ -157,9 +159,9 @@ typedef struct	s_thread_task
 
 #define ETHER_ADDR_LEN	6
 struct sniff_ethernet {
-		u_char ether_dhost[ETHER_ADDR_LEN]; /* Destination host address */
-		u_char ether_shost[ETHER_ADDR_LEN]; /* Source host address */
-		u_short ether_type; /* IP? ARP? RARP? etc */
+	u_char ether_dhost[ETHER_ADDR_LEN]; /* Destination host address */
+	u_char ether_shost[ETHER_ADDR_LEN]; /* Source host address */
+	u_short ether_type; /* IP? ARP? RARP? etc */
 };
 
 struct buffer {
@@ -175,10 +177,6 @@ struct buffer {
 struct packets {
 	struct sniff_ethernet	eth;
 	struct buffer		buf;
-};
-
-struct response_data {
-	uint8_t ports[RANGE_MAX];
 };
 
 struct nmap {

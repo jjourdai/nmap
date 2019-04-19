@@ -134,6 +134,7 @@ static struct params_getter options[] = {
 	{"scan", 's', F_SCANTYPE, get_scantype, &env.flag.scantype, DUP_ON},
 	{"ip", 'i', F_IP, get_string, &env.flag.ip, DUP_OFF},
 	{"file", 'f', F_FILE, get_ip_in_file, &env.flag.file, DUP_OFF},
+	{"verbose", 'v', F_VERBOSE, NULL, NULL, DUP_OFF},
 };
 
 void	longname_opt(char **argv, uint32_t *flag, int *i)
