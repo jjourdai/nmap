@@ -450,7 +450,6 @@ void		init_pcap(struct pcap_info *pcap, int def)
 
 void		listen_packets(struct pcap_info *pcap)
 {
-	alarm(env.timeout);
 	env.current = pcap;
 	if (pcap_loop(pcap->session, 0, got_packet, NULL))
 	{
@@ -462,8 +461,8 @@ void		signal_handler(int signal)
 {
 	if (signal == SIGALRM)
 	{
-		pthread_cancel(env.listenner[0]);
-		pthread_cancel(env.listenner[1]);
+		puts("SIGALRM");
+		pthread_mutex_unlock(&env.mutex);
 	}
 }
 
@@ -597,12 +596,15 @@ void		nmap_loop(void)
 	init_pcap(&env.pcap, 0);
 	init_pcap(&env.pcap_local, 1);
 	env.my_ip = get_my_ip(env.pcap.device);
+	env.mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 	uint8_t bit = 1;
 	printf("Permform scan on %s\n", env.flag.ip);
-
+	pthread_create(&env.listenner[0], NULL, (void*)&listen_packets, &env.pcap_local);
+	pthread_create(&env.listenner[1], NULL, (void*)&listen_packets, &env.pcap);
 	while (bit <= 32) {
-		env.current_scan = env.flag.scantype & bit;
-		if (env.current_scan != 0) {
+		if ((env.flag.scantype & bit) != 0) {
+			pthread_mutex_lock(&env.mutex);
+			env.current_scan = env.flag.scantype & bit;
 			i = (size_t)-1;
 			while (++i < env.flag.thread)
 			{
@@ -617,13 +619,15 @@ void		nmap_loop(void)
 			i = (size_t)-1;
 			while (++i < env.flag.thread)
 				pthread_join(env.threads[i].id, NULL);
-			pthread_create(&env.listenner[0], NULL, (void*)&listen_packets, &env.pcap_local);
-			pthread_create(&env.listenner[1], NULL, (void*)&listen_packets, &env.pcap);
-			pthread_join(env.listenner[0], NULL);
-			pthread_join(env.listenner[1], NULL);
+			alarm(env.timeout);
 		}
 		bit = bit << 1;
 	}
+	pthread_mutex_lock(&env.mutex);
+	pthread_cancel(env.listenner[0]);
+	pthread_cancel(env.listenner[1]);
+	pthread_join(env.listenner[0], NULL);
+	pthread_join(env.listenner[1], NULL);
 	gettimeofday(&now, NULL);
 	printf("Scan on %s took : %.5f secs\n", env.flag.ip, (double)handle_timer(&now, &initial_time) / 1000000);
 	freeaddrinfo(env.addr);
