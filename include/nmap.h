@@ -62,7 +62,7 @@
 # define DUP_OFF 0
 # define RANGE_MAX 1024
 # define SOURCE_PORT 48752
-# define RETRY_MAX 1
+# define RETRY_MAX 3
 # define DEBUG 1
 
 # define __FATAL(X, ...) handle_error(__LINE__, __FILE__, FATAL, X, __VA_ARGS__)
@@ -204,7 +204,6 @@ struct nmap {
 	struct addrinfo		*addr;
 	struct pcap_info	pcap;
 	struct pcap_info	pcap_local;
-	struct pcap_info	*current;
 	pthread_t		listenner[2];
 	pthread_mutex_t		mutex;
 	pthread_cond_t		cond;

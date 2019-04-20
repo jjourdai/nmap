@@ -381,11 +381,9 @@ void	run_thread(t_thread_task *task)
 	uint16_t	port;
 	uint8_t		current_try;
 
-	puts("Thread created");
 	while (1)
 	{
 		pthread_cond_wait(&env.cond, &task->mutex);
-		puts("Scan Launched");
 		current_try = 0;
 		for (; current_try < RETRY_MAX; current_try++) {
 			port = task->port_range.min - 1;
@@ -441,10 +439,13 @@ void		init_pcap(struct pcap_info *pcap, int def)
 		fprintf(stderr, "Can't get netmask for device %s\n", pcap->device);
 		exit(EXIT_FAILURE);
 	}
+}
+
+void		update_filter(struct pcap_info *pcap)
+{
 	struct bpf_program	fp;		/* The compiled filter expression */
 	char 				filter_exp[256];	/* The filter expression */
 
-	env.current = pcap;
 	sprintf(filter_exp, "src host %s and (dst port %u or icmp)", env.flag.ip, env.flag.port_src);
 	/* Open the default device */
 	if (pcap_compile(pcap->session, &fp, filter_exp, 0, pcap->net) == PCAP_ERROR)
@@ -462,7 +463,6 @@ void		init_pcap(struct pcap_info *pcap, int def)
 
 void		listen_packets(struct pcap_info *pcap)
 {
-	env.current = pcap;
 	if (pcap_loop(pcap->session, 0, got_packet, NULL))
 	{
 	//	if (pcap_dispatch(session, 0, got_packet, NULL)) {
@@ -473,7 +473,7 @@ void		signal_handler(int signal)
 {
 	if (signal == SIGALRM)
 	{
-		puts("SIGALRM");
+		write(1, ".", 1);
 		pthread_mutex_unlock(&env.mutex);
 	}
 }
@@ -628,21 +628,20 @@ void		nmap_loop(void)
 	struct timeval	now;
 
 	env.socket = create_socket(env.flag.ip);
-	init_pcap(&env.pcap, 0);
-	init_pcap(&env.pcap_local, 1);
 	init_response();
+	update_filter(&env.pcap);
+	update_filter(&env.pcap_local);
 	gettimeofday(&initial_time, NULL);
 	env.mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 	env.my_ip = get_my_ip(env.pcap.device);
-	uint8_t bit = 1;
 	printf("Permform scan on %s\n", env.flag.ip);
 	pthread_create(&env.listenner[0], NULL, (void*)&listen_packets, &env.pcap_local);
 	pthread_create(&env.listenner[1], NULL, (void*)&listen_packets, &env.pcap);
+	uint8_t bit = 1;
 	while (bit <= 32) {
 		if ((env.flag.scantype & bit) != 0) {
 			pthread_mutex_lock(&env.mutex);
 			env.current_scan = env.flag.scantype & bit;
-			puts("SYNCHRONOUS");
 			pthread_cond_broadcast(&env.cond);
 		}
 		bit = bit << 1;
@@ -653,12 +652,10 @@ void		nmap_loop(void)
 	gettimeofday(&now, NULL);
 	printf("Scan on %s took : %.5f secs\n", env.flag.ip, (double)handle_timer(&now, &initial_time) / 1000000);
 	freeaddrinfo(env.addr);
-	pcap_close(env.pcap.session);
 	if (env.flag.value & F_VERBOSE)
 		display_verbosity_result();
 	else
 		display_short_result();
-	pcap_close(env.pcap_local.session);
 }
 
 int		main(int argc, char **argv)
@@ -669,6 +666,8 @@ int		main(int argc, char **argv)
 	env.timeout = 2;
 	env.cond = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
 	create_thread_pool();
+	init_pcap(&env.pcap, 0);
+	init_pcap(&env.pcap_local, 1);
 	if (env.flag.ip)
 		nmap_loop();
 	else {
@@ -680,6 +679,8 @@ int		main(int argc, char **argv)
 		}
 		free(env.flag.file);
 	}
+	pcap_close(env.pcap.session);
+	pcap_close(env.pcap_local.session);
 	remove_thread_pool();
 	close(env.socket);
 	return (EXIT_SUCCESS);
