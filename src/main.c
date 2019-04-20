@@ -11,6 +11,11 @@ void	is_root(void)
 
 uint32_t	response[_UDP + 1][RANGE_MAX] = {0};
 
+void		init_response(void)
+{
+	ft_bzero(response, sizeof(response));
+}
+
 uint64_t	handle_timer(const struct timeval *now, const struct timeval *past)
 {
 	uint64_t time = ((now->tv_sec) << 20) | (now->tv_usec);
@@ -173,7 +178,6 @@ const uint8_t tcp_res[][128] = {
 
 void	response_tcp(struct buffer *res) 
 {
-
 	response[env.current_scan][ntohs(res->un.tcp.th_sport) - env.flag.port_range.min] = IPPROTO_TCP << 16 | res->un.tcp.th_flags;
 	#if DEBUG == 1
 	struct  servent *service;
@@ -245,6 +249,7 @@ void (*res_type[])(struct buffer *res) = {
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
+	alarm(env.timeout);
 	struct packets *sniff;
 	sniff = (struct packets*)packet;
 	uint16_t protocol = sniff->buf.ip.protocol;
@@ -376,15 +381,22 @@ void	run_thread(t_thread_task *task)
 	uint16_t	port;
 	uint8_t		current_try;
 
-	current_try = 0;
-	for (; current_try < RETRY_MAX; current_try++) {
-		port = task->port_range.min - 1;
-		while (port < task->port_range.max)
-		{
-			if (response[env.current_scan][port - env.flag.port_range.min + 1] == TIMEOUT)
-				send_packet(task->scan_type, port + 1);
-			++port;
+	puts("Thread created");
+	while (1)
+	{
+		pthread_cond_wait(&env.cond, &task->mutex);
+		puts("Scan Launched");
+		current_try = 0;
+		for (; current_try < RETRY_MAX; current_try++) {
+			port = task->port_range.min - 1;
+			while (port < task->port_range.max)
+			{
+				if (response[env.current_scan][port - env.flag.port_range.min + 1] == TIMEOUT)
+					send_packet(env.current_scan, port + 1);
+				++port;
+			}
 		}
+		alarm(env.timeout);
 	}
 }
 
@@ -583,20 +595,45 @@ void		display_short_result(void)
 	}
 }
 
+void		create_thread_pool(void)
+{
+	size_t		i;
+	int		ret;
+
+	i = (size_t)-1;
+	while (++i < env.flag.thread)
+	{
+		env.threads[i].mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+		env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
+		env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
+		env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
+		if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i]))) {}
+	}
+}
+
+void		remove_thread_pool(void)
+{
+	size_t		i;
+
+	i = (size_t)-1;
+	while (++i < env.flag.thread)
+	{
+		pthread_cancel(env.threads[i].id);
+	}
+}
+
 void		nmap_loop(void)
 {
-	int		ret;
-	size_t		i;
 	struct timeval	initial_time;
 	struct timeval	now;
 
-	gettimeofday(&initial_time, NULL);
 	env.socket = create_socket(env.flag.ip);
-	env.timeout = 2;
 	init_pcap(&env.pcap, 0);
 	init_pcap(&env.pcap_local, 1);
-	env.my_ip = get_my_ip(env.pcap.device);
+	init_response();
+	gettimeofday(&initial_time, NULL);
 	env.mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+	env.my_ip = get_my_ip(env.pcap.device);
 	uint8_t bit = 1;
 	printf("Permform scan on %s\n", env.flag.ip);
 	pthread_create(&env.listenner[0], NULL, (void*)&listen_packets, &env.pcap_local);
@@ -605,33 +642,17 @@ void		nmap_loop(void)
 		if ((env.flag.scantype & bit) != 0) {
 			pthread_mutex_lock(&env.mutex);
 			env.current_scan = env.flag.scantype & bit;
-			i = (size_t)-1;
-			while (++i < env.flag.thread)
-			{
-				env.threads[i].scan_type = env.current_scan;
-				env.threads[i].port_range.min = env.flag.port_range.min + ((i * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread);
-				env.threads[i].port_range.max = env.flag.port_range.min + (((i + 1) * (env.flag.port_range.max - env.flag.port_range.min + 1)) / env.flag.thread) - 1;
-				env.threads[i].ports = &env.ports[env.threads[i].port_range.min - env.flag.port_range.min];
-				if (!(ret = pthread_create(&env.threads[i].id, NULL, (void *)&run_thread, &env.threads[i])))
-				{
-				}
-			}
-			i = (size_t)-1;
-			while (++i < env.flag.thread)
-				pthread_join(env.threads[i].id, NULL);
-			alarm(env.timeout);
+			puts("SYNCHRONOUS");
+			pthread_cond_broadcast(&env.cond);
 		}
 		bit = bit << 1;
 	}
 	pthread_mutex_lock(&env.mutex);
 	pthread_cancel(env.listenner[0]);
 	pthread_cancel(env.listenner[1]);
-	pthread_join(env.listenner[0], NULL);
-	pthread_join(env.listenner[1], NULL);
 	gettimeofday(&now, NULL);
 	printf("Scan on %s took : %.5f secs\n", env.flag.ip, (double)handle_timer(&now, &initial_time) / 1000000);
 	freeaddrinfo(env.addr);
-	close(env.socket);
 	pcap_close(env.pcap.session);
 	if (env.flag.value & F_VERBOSE)
 		display_verbosity_result();
@@ -643,9 +664,11 @@ void		nmap_loop(void)
 int		main(int argc, char **argv)
 {
 	get_options(argc, argv);
-	env.pid = getpid();
 	init_sigaction();
-
+	env.pid = getpid();
+	env.timeout = 2;
+	env.cond = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+	create_thread_pool();
 	if (env.flag.ip)
 		nmap_loop();
 	else {
@@ -657,5 +680,7 @@ int		main(int argc, char **argv)
 		}
 		free(env.flag.file);
 	}
+	remove_thread_pool();
+	close(env.socket);
 	return (EXIT_SUCCESS);
 }

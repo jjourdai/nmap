@@ -156,7 +156,7 @@ typedef struct	s_port
 typedef struct	s_thread_task
 {
 	pthread_t		id;
-	uint8_t			scan_type;
+	pthread_mutex_t		mutex;
 	t_port_range		port_range;
 	t_port			*ports;
 	void			(*function)(struct s_thread_task *, t_port *);
@@ -207,6 +207,7 @@ struct nmap {
 	struct pcap_info	*current;
 	pthread_t		listenner[2];
 	pthread_mutex_t		mutex;
+	pthread_cond_t		cond;
 };
 
 typedef struct parameters {
