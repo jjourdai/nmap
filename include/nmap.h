@@ -205,6 +205,7 @@ struct nmap {
 	struct pcap_info	pcap;
 	struct pcap_info	pcap_local;
 	struct pcap_info	*current;
+	pthread_t		listenner[2];
 };
 
 typedef struct parameters {

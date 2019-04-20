@@ -462,7 +462,8 @@ void		signal_handler(int signal)
 {
 	if (signal == SIGALRM)
 	{
-		pcap_breakloop(env.current->session);
+		pthread_cancel(env.listenner[0]);
+		pthread_cancel(env.listenner[1]);
 	}
 }
 
@@ -598,6 +599,7 @@ void		nmap_loop(void)
 	env.my_ip = get_my_ip(env.pcap.device);
 	uint8_t bit = 1;
 	printf("Permform scan on %s\n", env.flag.ip);
+
 	while (bit <= 32) {
 		env.current_scan = env.flag.scantype & bit;
 		if (env.current_scan != 0) {
@@ -615,16 +617,18 @@ void		nmap_loop(void)
 			i = (size_t)-1;
 			while (++i < env.flag.thread)
 				pthread_join(env.threads[i].id, NULL);
-			listen_packets(&env.pcap);
-			listen_packets(&env.pcap_local);
+			pthread_create(&env.listenner[0], NULL, (void*)&listen_packets, &env.pcap_local);
+			pthread_create(&env.listenner[1], NULL, (void*)&listen_packets, &env.pcap);
+			pthread_join(env.listenner[0], NULL);
+			pthread_join(env.listenner[1], NULL);
 		}
 		bit = bit << 1;
 	}
+	gettimeofday(&now, NULL);
+	printf("Scan on %s took : %.5f secs\n", env.flag.ip, (double)handle_timer(&now, &initial_time) / 1000000);
 	freeaddrinfo(env.addr);
 	close(env.socket);
 	pcap_close(env.pcap.session);
-	gettimeofday(&now, NULL);
-	printf("Scan on %s took : %.5f secs\n", env.flag.ip, (double)handle_timer(&now, &initial_time) / 1000000);
 	if (env.flag.value & F_VERBOSE)
 		display_verbosity_result();
 	else
