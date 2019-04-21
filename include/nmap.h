@@ -125,7 +125,8 @@ enum	e_port_state
 	PORT_OPEN = BIT(0),
 	PORT_FILTERED = BIT(1),
 	PORT_CLOSED = BIT(2),
-	PORT_UNFILTERED = BIT(3)
+	PORT_UNFILTERED = BIT(3),
+	TIMEOUT2 = 10,
 };
 
 struct scan_type_info {
