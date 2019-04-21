@@ -6,7 +6,7 @@
 /*   By: polooo <polooo@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/12/17 18:12:39 by jjourdai          #+#    #+#             */
-/*   Updated: 2019/04/14 23:28:23 by polooo           ###   ########.fr       */
+/*   Updated: 2019/04/21 19:00:19 by polooo           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -156,11 +156,10 @@ typedef struct	s_port
 
 typedef struct	s_thread_task
 {
-	pthread_t		id;
+	pthread_t			id;
 	pthread_mutex_t		mutex;
 	t_port_range		port_range;
-	t_port			*ports;
-	void			(*function)(struct s_thread_task *, t_port *);
+	int					run;
 }		t_thread_task;
 
 #define ETHER_ADDR_LEN	6
@@ -196,17 +195,14 @@ struct nmap {
 		t_port_range	port_range;
 	} flag;
 	t_thread_task	threads[THREAD_MAX];
-	t_port			ports[RANGE_MAX];
-	uint32_t	my_ip;
+	struct sockaddr	my_ip;
 	uint8_t		current_scan;
 	uint32_t	pid;
 	uint32_t	socket;
 	uint32_t	timeout;
+	uint32_t			response[_UDP + 1][RANGE_MAX];
 	struct addrinfo		*addr;
 	struct pcap_info	pcap;
-	struct pcap_info	pcap_local;
-	pthread_t		listenner[2];
-	pthread_mutex_t		mutex;
 	pthread_cond_t		cond;
 };
 
@@ -231,6 +227,18 @@ struct scan_type {
 
 struct nmap env;
 
+void	send_packet(uint8_t scan_type, uint16_t port);
+void	got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
+
+void	display_verbosity_result(void);
+void	display_short_result(void);
+
+void	create_thread_pool(void);
+void	remove_thread_pool(void);
+void	run_thread(t_thread_task *task);
+
+int		create_socket(void *domain);
+
 /* params.c */
 t_list	*get_params(char **argv, int argc, uint32_t *flag);
 void	get_options(int argc, char **argv);
@@ -248,5 +256,14 @@ void		init_receive_buffer(void);
 void	handle_error(uint32_t line, char *file, t_bool fatal, uint32_t error_code,  ...);
 int		x_int(int err, int res, char *str, char *file, int line);
 void	*x_roid(void *err, void *res, char *str, char *file, int line);
+
+extern const char					*scan_type_string[];
+extern const char					*port_status[];
+extern const char					*tcp_flag_string[];
+extern const char					*icmp_code_string[];
+extern const char					*timeout_result[];
+extern const struct scan_type_info	info_scan[];
+extern const uint8_t				icmp_res[][128][128];
+extern const uint8_t				tcp_res[][128];
 
 #endif

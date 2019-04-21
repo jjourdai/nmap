@@ -6,7 +6,7 @@
 #    By: polooo <polooo@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2017/01/17 13:28:01 by jjourdai          #+#    #+#              #
-#    Updated: 2019/04/13 17:50:23 by polooo           ###   ########.fr        #
+#    Updated: 2019/04/21 18:54:06 by polooo           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -19,6 +19,11 @@ SRC_NAME =	main.c \
 			options.c \
 			init.c \
 			err.c \
+			result.c \
+			send.c \
+			receive.c \
+			threads.c \
+			init_2.c
 
 INC_NAME =	nmap.h \
 			colors.h
