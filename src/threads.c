@@ -14,38 +14,22 @@
 
 void	run_thread(t_thread_task *task)
 {
-	uint16_t		port;
-	uint16_t		range = task->port_range.max - task->port_range.min;
-	uint16_t		current;
-	uint8_t			current_try;
-	static uint8_t	timeout = TIMEOUT;
-	static uint8_t	send = TIMEOUT2;
-
-	srand(time(NULL));
+	uint16_t	port;
+	uint8_t		current_try;
 	while (1)
 	{
 		pthread_cond_wait(&env.cond, &task->mutex);
-		for (current_try = 0; current_try < RETRY_MAX; current_try++)
-		{
-			timeout = (timeout == TIMEOUT) ? TIMEOUT2 : TIMEOUT;
-			send = (send == TIMEOUT) ? TIMEOUT2 : TIMEOUT;
-			current = 0;
-			while (current != range)
+		current_try = 0;
+		for (; current_try < RETRY_MAX; current_try++) {
+			port = task->port_range.min - 1;
+			while (port < task->port_range.max)
 			{
-				port = (rand() % (task->port_range.max - task->port_range.min)) + task->port_range.min;
-				if (env.response[env.current_scan][port - env.flag.port_range.min + 1] == timeout)
-				{
+				if (env.response[env.current_scan][port - env.flag.port_range.min + 1] == TIMEOUT)
 					send_packet(env.current_scan, port + 1);
-					env.response[env.current_scan][port - env.flag.port_range.min + 1] = send;
-					current++;
-				}
-				else
-				{
-					current++;
-				}
 				++port;
 			}
 		}
+		alarm(env.timeout);
 	}
 }
 

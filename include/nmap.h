@@ -237,7 +237,8 @@ void	create_thread_pool(void);
 void	remove_thread_pool(void);
 void	run_thread(t_thread_task *task);
 
-int		create_socket(void *domain);
+int	create_socket(void *domain);
+void	init_pcap(struct pcap_info *pcap);
 
 /* params.c */
 t_list	*get_params(char **argv, int argc, uint32_t *flag);
