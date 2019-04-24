@@ -150,6 +150,8 @@ void		nmap_loop(void)
 	struct timeval	initial_time, now;
 	struct hostent	*p;	
 
+	env.socket = create_socket(env.flag.ip);
+	init_pcap(&env.pcap);
 	ft_bzero(&env.response, sizeof(env.response));
 	update_filter(&env.pcap);
 	gettimeofday(&initial_time, NULL);
@@ -177,6 +179,8 @@ void		nmap_loop(void)
 		display_verbosity_result();
 	else
 		display_short_result();
+	pcap_close(env.pcap.session);
+	close(env.socket);
 }
 
 int		main(int argc, char **argv)
@@ -187,8 +191,6 @@ int		main(int argc, char **argv)
 	env.timeout = 1;
 	env.cond = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
 	create_thread_pool();
-	env.socket = create_socket(env.flag.ip);
-	init_pcap(&env.pcap);
 	if (env.flag.ip)
 		nmap_loop();
 	else
@@ -202,8 +204,6 @@ int		main(int argc, char **argv)
 		}
 		free(env.flag.file);
 	}
-	pcap_close(env.pcap.session);
 	remove_thread_pool();
-	close(env.socket);
 	return (EXIT_SUCCESS);
 }
