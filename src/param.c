@@ -23,7 +23,7 @@ static void	get_ip_in_file(char *str, void *ptr)
 	t_list	*list = NULL;
 
 	ips = *((char***)ptr);
-	file = __ASSERTI(-1, open(str, O_RDONLY), "open");	
+	file = __ASSERTI(-1, open(str, O_RDONLY), "open");
 	while ((ret = get_next_line(file, &line)))
 	{
 		if (ret == -1) 

@@ -85,7 +85,7 @@ void (*res_type[])(struct buffer *res) = {
 	[IPPROTO_ICMP] = response_icmp,
 };
 
-void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
+void got_packet(__attribute__((unused))u_char *args, __attribute__((unused))const struct pcap_pkthdr *header, const u_char *packet)
 {
 	struct packets	*sniff;
 

@@ -21,17 +21,22 @@ char	*error_str[] = {
 	[FILE_IS_EMPTY] = RED_TEXT("%s: file is empty -- %s\n"),
 };
 
-void	handle_error(uint32_t line, char *file, t_bool fatal, enum error code, ...)
+static void internal_handle_error(uint32_t line, char *file, t_bool fatal, char *str, ...)
 {
 	va_list ap;
 
-	va_start(ap, error_str[code]);
-	vfprintf(stderr, error_str[code], ap);
+	va_start(ap, str);
+	vfprintf(stderr, str, ap);
 	va_end(ap);
 	if (DEBUG)
 		fprintf(stderr, RED_TEXT("Line : %u, File %s\n"), line, file);
 	if (fatal == TRUE)
 		exit(EXIT_FAILURE);
+}
+
+void	handle_error(uint32_t line, char *file, t_bool fatal, enum error code, ...)
+{
+	internal_handle_error(line, file, fatal, error_str[code]);
 }
 
 int		x_int(int err, int res, char *str, char *file, int line)
