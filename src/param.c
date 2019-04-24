@@ -13,17 +13,6 @@
 #include "nmap.h"
 #include "colors.h"
 
-/*
-   static t_parameters *store_parameters(char *str, enum options flag)
-   {
-   static t_parameters new_param;
-
-   new_param.str = str;
-   new_param.code = flag;
-   return (&new_param);
-   }
- */
-
 static void	get_ip_in_file(char *str, void *ptr)
 {
 	int		file;
@@ -239,7 +228,7 @@ t_list		*get_params(char **argv, int argc, uint32_t *flag)
 void	print_scan_configuration(void)
 {
 	uint32_t	i;
-
+	
 	printf(BLUE_TEXT("Scan Configurations:\n"));
 	if (env.flag.file != NULL) {
 		printf(BLUE_TEXT("File Input detected:\n"));
@@ -271,15 +260,15 @@ void	print_scan_configuration(void)
 
 void	get_options(int argc, char **argv)
 {
-	t_list	*parameters;
 	/* default parameters */
 	ft_bzero(&env, sizeof(env));
 	env.flag.scantype = _ALL;
 	env.flag.thread = 1;
 	env.flag.port_range.min = 1;	
 	env.flag.port_range.max = RANGE_MAX;
+	env.flag.port_src = SOURCE_PORT;
 	/**********************/
-	parameters = get_params(argv, argc, (uint32_t*)&env.flag.value);
+	get_params(argv, argc, (uint32_t*)&env.flag.value);
 	if (env.flag.value & F_HELP) {
 		fprintf(stderr, GREEN_TEXT(USAGE) GREEN_TEXT(HELPER)); exit(EXIT_FAILURE);
 	}
@@ -293,6 +282,5 @@ void	get_options(int argc, char **argv)
 	}
 	print_scan_configuration();
 	env.flag.scantype = (env.flag.scantype & _ALL);
-	env.flag.port_src = (env.flag.port_src == 0) ? SOURCE_PORT : env.flag.port_src;
 	//	list_remove(&parameters, remove_content);
 }

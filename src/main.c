@@ -147,13 +147,17 @@ void		init_sigaction(void)
 
 void		nmap_loop(void)
 {
-	struct timeval	initial_time;
-	struct timeval	now;
+	struct timeval	initial_time, now;
+	struct hostent	*p;	
 
 	ft_bzero(&env.response, sizeof(env.response));
 	update_filter(&env.pcap);
 	gettimeofday(&initial_time, NULL);
-	printf("Permform scan on %s\n", env.flag.ip);
+	if ((p = gethostbyaddr(&((struct sockaddr_in*)env.addr->ai_addr)->sin_addr.s_addr, 8, AF_INET))) {
+		printf("Permform scan on %s DNS record %s\n", env.flag.ip, p->h_name);
+	} else {
+		printf("Permform scan on %s\n", env.flag.ip);
+	}
 	uint8_t bit = 1;
 	while (bit <= 32)
 	{
