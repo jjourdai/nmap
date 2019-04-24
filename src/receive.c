@@ -42,7 +42,10 @@ void	response_icmp(struct buffer *res)
 		else
 			printf("service unknown \n");
 		#endif
-		env.response[env.current_scan][ntohs(ptr->un.tcp.th_dport) - env.flag.port_range.min] = (IPPROTO_ICMP << 16) | (res->un.icmp.type << 8) | (res->un.icmp.code);
+		if (ntohs(ptr->un.udp.uh_dport) < env.flag.port_range.max && ntohs(ptr->un.udp.uh_dport)\
+			> env.flag.port_range.min)
+		env.response[env.current_scan][ntohs(ptr->un.tcp.th_dport) - env.flag.port_range.min] =\
+			(IPPROTO_ICMP << 16) | (res->un.icmp.type << 8) | (res->un.icmp.code);
 	}
 	else if (ptr->ip.protocol == IPPROTO_UDP)
 	{
@@ -55,7 +58,10 @@ void	response_icmp(struct buffer *res)
 		else
 			printf("service unknown \n");
 		#endif
-		env.response[env.current_scan][ntohs(ptr->un.udp.uh_dport) - env.flag.port_range.min] = (IPPROTO_ICMP << 16) | (res->un.icmp.type << 8) | (res->un.icmp.code);
+		if (ntohs(ptr->un.udp.uh_dport) < env.flag.port_range.max && ntohs(ptr->un.udp.uh_dport)\
+			> env.flag.port_range.min)
+			env.response[env.current_scan][ntohs(ptr->un.udp.uh_dport) - env.flag.port_range.min] =\
+				(IPPROTO_ICMP << 16) | (res->un.icmp.type << 8) | (res->un.icmp.code);
 	}
 	else
 	{
