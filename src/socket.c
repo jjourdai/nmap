@@ -12,7 +12,7 @@
 
 #include "nmap.h"
 
-struct addrinfo *result_dns(char *domain)
+static struct addrinfo *result_dns(char *domain)
 {
 	struct addrinfo	hints;
 	struct addrinfo	*result = NULL;
@@ -29,7 +29,7 @@ struct addrinfo *result_dns(char *domain)
 		return (result);
 }
 
-char		*resolve_device_2(struct sockaddr *src)
+static char	*find_network_device(struct sockaddr *src)
 {
 	struct ifaddrs	*addrs;
 	struct ifaddrs	*tmp;
@@ -52,7 +52,7 @@ char		*resolve_device_2(struct sockaddr *src)
 	return (NULL);
 }
 
-char		*resolve_device(struct sockaddr *src)
+static char	*resolve_device(struct sockaddr *src)
 {
 	socklen_t		len;
 	int				ret;
@@ -68,7 +68,7 @@ char		*resolve_device(struct sockaddr *src)
 		fprintf(stderr, "%s\n", strerror(errno));
 		return (NULL);
 	}
-	return (resolve_device_2(&env.my_ip));
+	return (find_network_device(&env.my_ip));
 }
 
 void		init_pcap(struct pcap_info *pcap)

@@ -22,7 +22,7 @@ SRC_NAME =	main.c \
 			send.c \
 			receive.c \
 			threads.c \
-			init_2.c
+			socket.c
 
 INC_NAME =	nmap.h \
 			colors.h
