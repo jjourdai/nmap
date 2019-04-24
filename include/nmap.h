@@ -63,7 +63,7 @@
 # define RANGE_MAX 1024
 # define SOURCE_PORT 48752
 # define RETRY_MAX 3
-# define DEBUG 1
+# define DEBUG 0
 
 # define __FATAL(X, ...) handle_error(__LINE__, __FILE__, FATAL, X, __VA_ARGS__)
 # define __ASSERTI(ERR_VALUE, RETURN_VALUE, STRING) x_int(ERR_VALUE, RETURN_VALUE, STRING, __FILE__, __LINE__)
@@ -117,6 +117,7 @@ enum	error {
 	NOT_ONLY_DIGIT,
 	PORT_NOT_EXIST,
 	UNKNOWN_HOST,
+	FILE_IS_EMPTY,
 };
 
 enum	e_port_state

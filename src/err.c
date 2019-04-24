@@ -18,6 +18,7 @@ char	*error_str[] = {
 	[NOT_ONLY_DIGIT] = RED_TEXT("%s: source_port must be only digit -- %s\n"),
 	[PORT_NOT_EXIST] = RED_TEXT("%s: source_port must be contains between 0 >= 65535 -- %s\n"),
 	[UNKNOWN_HOST] = RED_TEXT("%s: Unknown host -- %s\n"),
+	[FILE_IS_EMPTY] = RED_TEXT("%s: file is empty -- %s\n"),
 };
 
 void	handle_error(uint32_t line, char *file, t_bool fatal, enum error code, ...)

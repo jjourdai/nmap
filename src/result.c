@@ -100,6 +100,9 @@ const uint8_t tcp_res[][128] = {
 		[_ACK] = {
 			[TH_RST] = PORT_UNFILTERED,
 		},
+		[_UDP] = {
+			0,
+		}
 };
 
 enum e_port_state 	display_tcp(uint8_t scantype, uint16_t value) 

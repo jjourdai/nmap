@@ -93,6 +93,7 @@ void		init_pcap(struct pcap_info *pcap)
 		fprintf(stderr, "Can't get netmask for device %s\n", pcap->device);
 		exit(EXIT_FAILURE);
 	}
+	free(pcap->device);
 }
 
 int create_socket(void *domain)

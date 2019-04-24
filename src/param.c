@@ -33,7 +33,8 @@ static void	get_ip_in_file(char *str, void *ptr)
 	free(line);
 	ips_found = list_size(list);
 	ips = ft_memalloc((ips_found + 1) * sizeof(char *));
-
+	if (ips_found == 0)
+		__FATAL(FILE_IS_EMPTY, BINARY_NAME, str);
 	int i;
 	char **free_ptr;
 	for (i = 0; i < ips_found; i++)

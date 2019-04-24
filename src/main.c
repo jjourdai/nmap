@@ -173,7 +173,7 @@ void		nmap_loop(void)
 		bit = bit << 1;
 	}
 	gettimeofday(&now, NULL);
-	printf("Scan on %s took : %.5f secs\n", env.flag.ip, (double)handle_timer(&now, &initial_time) / 1000000);
+	printf("\nScan on %s took : %.5f secs\n", env.flag.ip, (double)handle_timer(&now, &initial_time) / 1000000);
 	freeaddrinfo(env.addr);
 	if (env.flag.value & F_VERBOSE)
 		display_verbosity_result();
