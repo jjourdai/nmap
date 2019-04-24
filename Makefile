@@ -16,7 +16,6 @@ INC_PATH =	./include/
 
 SRC_NAME =	main.c \
 			param.c \
-			options.c \
 			init.c \
 			err.c \
 			result.c \

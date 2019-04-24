@@ -106,7 +106,6 @@ int create_socket(void *domain)
 		fprintf(stderr, "Do you want to ping broadcast? but No\n");
 		exit(EXIT_FAILURE);
 	}
-	soc = __ASSERTI(-1, socket(PF_INET, SOCK_RAW, IPPROTO_RAW), "socket:");
-	//__ASSERTI(-1, setsockopt(soc, IPPROTO_IP, IP_HDRINCL, &opt_value, sizeof(opt_value)), "setsockopt:");
+	soc = __ASSERTI(-1, socket(PF_INET, SOCK_RAW, IPPROTO_RAW), "Socket");
 	return (soc);
 }

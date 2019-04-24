@@ -43,8 +43,13 @@ int		x_int(int err, int res, char *str, char *file, int line)
 {
 	if (res == err)
 	{
-		fprintf(stderr, "%s error (%s, %d): %s\n",\
-			str, file, line, strerror(errno));
+		if (DEBUG == 1) {
+			fprintf(stderr, "%s error (%s, %d): %s\n",\
+				str, file, line, strerror(errno));
+		} else {
+			fprintf(stderr, "%s: %s '%s'\n",\
+				 BINARY_NAME, strerror(errno), str);
+		}
 		exit(EXIT_FAILURE);
 	}
 	return (res);

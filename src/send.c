@@ -14,11 +14,11 @@
 
 struct pseudo_entete
 {
-	unsigned long ip_source; // Adresse ip source
-	unsigned long ip_dest; // Adresse ip destination
-	char mbz; // Champs à 0
-	char type; // Type de protocole (6->TCP et 17->UDP)
-	unsigned short length; // htons( Entete TCP ou UDP + Data )
+	unsigned long ip_source;
+	unsigned long ip_dest;
+	char mbz;
+	char type;
+	unsigned short length;
 }__attribute__((packed));
 
 struct package { 
