@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   get_next_line.c                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: jjourdai <jjourdai@student42.fr>           +#+  +:+       +#+        */
+/*   By: polooo <polooo@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2016/11/20 12:19:58 by jjourdai          #+#    #+#             */
-/*   Updated: 2019/01/19 13:18:27 by jjourdai         ###   ########.fr       */
+/*   Updated: 2019/04/25 14:43:07 by polooo           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,7 +55,7 @@ static int	core_get(char **line, char *buf, t_fd **lst, int fd)
 	int			ret;
 	char		*bef;
 
-	while ((ret = read(fd, buf, BUFF_SIZE)))
+	while ((ret = read(fd, buf, BUFF_SIZE)) > 0)
 	{
 		ft_bzero(buf + ret, BUFF_SIZE - ret);
 		if (ret == -1)
