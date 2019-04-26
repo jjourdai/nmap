@@ -81,6 +81,7 @@ const char *port_status[] = {
 	[PORT_FILTERED] = "Filtered",
 	[PORT_CLOSED] = "Closed",
 	[PORT_UNFILTERED] = "Unfiltered",
+	[0] = "Undefined",
 };
 
 struct pseudo_entete

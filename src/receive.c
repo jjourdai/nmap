@@ -66,7 +66,7 @@ void	response_icmp(struct buffer *res)
 	else
 	{
 		#if DEBUG == 1
-		printf("Unknown protocol %s %u\n", __FILE__, __LINE__);
+		printf("Unknown protocol %d %s %u\n", ptr->ip.protocol, __FILE__, __LINE__);
 		#endif
 	}
 }

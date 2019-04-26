@@ -39,8 +39,8 @@ NAME = ft_nmap
 	
 CC = gcc
 
-CFLAGS = -Wall -Wextra -fsanitize=address -g -fno-omit-frame-pointer -lpcap -lpthread
-#CFLAGS = -Wall -Wextra -lpcap -lpthread -g
+#CFLAGS = -Wall -Wextra -fsanitize=address -g -fno-omit-frame-pointer -lpcap -lpthread
+CFLAGS = -Wall -Wextra -lpcap -lpthread -g -Werror
 
 OBJ_NAME = $(SRC_NAME:.c=.o)
 
