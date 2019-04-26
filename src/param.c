@@ -220,8 +220,6 @@ t_list		*get_params(char **argv, int argc, uint32_t *flag)
 		} else {
 			__FATAL(UNDEFINED_PARAMETER, BINARY_NAME, argv[i]);
 		}
-		//		else
-		//				list_push_back(&parameters, store_parameters(argv[i], DOMAIN), sizeof(t_parameters));
 	}
 	return (parameters);
 }
@@ -283,5 +281,4 @@ void	get_options(int argc, char **argv)
 	}
 	print_scan_configuration();
 	env.flag.scantype = (env.flag.scantype & _ALL);
-	//	list_remove(&parameters, remove_content);
 }
