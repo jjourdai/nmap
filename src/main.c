@@ -189,7 +189,7 @@ int		main(int argc, char **argv)
 	get_options(argc, argv);
 	init_sigaction();
 	env.pid = getpid();
-	env.timeout = 1;
+	env.timeout = 2;
 	env.cond = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
 	create_thread_pool();
 	if (env.flag.ip)
